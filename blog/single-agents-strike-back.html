@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Single Agents Strike Back: 5 Counter-Intuitive Findings Reshaping Multi-Agent Systems in the LLM Era">
+    <title>Single Agents Strike Back: 5 Counter-Intuitive Findings That Are Reshaping MAS in the LLM Era</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=Space+Grotesk:wght@500;600&amp;display=swap');
+        
+        :root {
+            --tw-color-primary: #0ea5e9;
+        }
+        
+        body {
+            font-family: 'Inter', system_ui, sans-serif;
+        }
+        
+        .heading-font {
+            font-family: 'Space Grotesk', sans-serif;
+        }
+        
+        .prose h2 {
+            font-family: 'Space Grotesk', sans-serif;
+        }
+        
+        .article-container {
+            max-width: 780px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        
+        .figure-container {
+            position: relative;
+            margin: 2.5rem 0;
+        }
+        
+        .figure-container img {
+            border-radius: 12px;
+            box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1);
+        }
+        
+        .blockquote {
+            border-left: 4px solid #0ea5e9;
+            background-color: #f8fafc;
+            padding-left: 1.5rem;
+        }
+        
+        .dark .blockquote {
+            background-color: #1e2937;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100">
+    <!-- Navbar -->
+    <nav class="border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 sticky top-0 z-50">
+        <div class="max-w-screen-2xl mx-auto px-8 py-5 flex items-center justify-between">
+            <div class="flex items-center gap-x-3">
+                <div class="w-8 h-8 bg-sky-500 rounded-2xl flex items-center justify-center text-white font-bold text-xl">MA</div>
+                <a href="/" class="text-2xl font-semibold tracking-tighter heading-font">Multi-Agent Insights</a>
+            </div>
+            <div class="flex items-center gap-x-8 text-sm font-medium">
+                <a href="/" class="hover:text-sky-600 transition-colors">Home</a>
+                <a href="/research" class="hover:text-sky-600 transition-colors">Research</a>
+                <a href="/blog" class="text-sky-600 font-semibold">Blog</a>
+                <a href="/about" class="hover:text-sky-600 transition-colors">About</a>
+                <a href="https://twitter.com" target="_blank" class="flex items-center gap-x-1 hover:text-sky-600 transition-colors">
+                    <i class="fa-brands fa-x-twitter"></i>
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero / Header -->
+    <header class="pt-16 pb-12 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800">
+        <div class="article-container px-6">
+            <div class="flex items-center gap-x-2 text-sky-600 text-sm font-medium mb-4">
+                <span class="px-3 py-1 bg-sky-100 dark:bg-sky-950 rounded-full">LLM Agents</span>
+                <span class="px-3 py-1 bg-sky-100 dark:bg-sky-950 rounded-full">MAS vs SAS</span>
+                <span class="px-3 py-1 bg-sky-100 dark:bg-sky-950 rounded-full">2025 Research</span>
+            </div>
+            
+            <h1 class="text-5xl leading-none font-semibold tracking-tighter heading-font mb-6">
+                Single Agents Strike Back:<br>5 Counter-Intuitive Findings That Are Reshaping MAS in the LLM Era
+            </h1>
+            
+            <div class="flex items-center gap-x-4 text-sm">
+                <div class="flex items-center">
+                    <div class="w-8 h-8 bg-gradient-to-br from-sky-400 to-indigo-600 rounded-2xl flex items-center justify-center text-white text-xs font-bold">G</div>
+                    <div class="ml-3">
+                        <p class="font-medium">Daniel Gordon • Multi-Agent Insights</p>
+                        <p class="text-slate-500 dark:text-slate-400 text-xs">April 21, 2026 • 12 min read</p>
+                    </div>
+                </div>
+                <div class="h-3 w-px bg-slate-300 dark:bg-slate-700"></div>
+                <p class="text-slate-500 dark:text-slate-400 text-sm">In classical MARL one agent that sees everything wins. Three new papers show the same is true for LLM agents — once you control for context and compute.</p>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="article-container px-6 py-12 prose dark:prose-invert max-w-none">
+        
+        <!-- Hook / Introduction -->
+        <div class="mb-16">
+            <p class="text-xl leading-relaxed text-slate-600 dark:text-slate-400 mb-8">
+                In classical multi-agent reinforcement learning, the wisdom is unambiguous: <strong>a single centralized agent with full observability crushes any team of specialists operating on partial views</strong>. 
+                Yet when LLMs entered the agentic stage, many of us assumed the game had changed. Massive context windows would be the new bottleneck—so decomposition into role-specialized multi-agent systems (MAS) became the default.
+            </p>
+            <p class="text-xl leading-relaxed text-slate-600 dark:text-slate-400">
+                Three recent papers flip that assumption on its head. They show that, even (or especially) when we control for the very factors we thought favored MAS, single-agent systems (SAS) are shockingly competitive — often superior — and that many touted MAS gains were illusory.
+            </p>
+            
+            <div class="figure-container my-12">
+                <img src="https://arxiv.org/html/2505.18286v1/figure/fig1.png" 
+                     alt="Figure 1: Overview of the paper from Gao et al. (2025) showing MAS vs SAS comparison and hybrid optimizations" 
+                     class="w-full mx-auto">
+                <figcaption class="text-center text-sm text-slate-500 dark:text-slate-400 mt-4">
+                    Figure 1 from Gao et al. (2025): Overview of comprehensive MAS vs SAS comparison and cost-effective hybrid optimizations.
+                </figcaption>
+            </div>
+        </div>
+
+        <!-- Takeaway 1 -->
+        <section class="mb-20">
+            <h2 class="text-3xl font-semibold tracking-tighter heading-font mb-4 flex items-baseline gap-x-3">
+                <span class="text-4xl text-sky-500 font-mono">01</span>
+                When you equalize thinking-token budgets, single agents consistently match or outperform multi-agent architectures on multi-hop reasoning
+            </h2>
+            <p class="text-slate-600 dark:text-slate-400 mb-6">
+                The most information-theoretically clean result comes from Tran and Kiela (2025). They fix the <em>global thinking token budget</em> and compare SAS against five representative MAS designs across FRAMES and MuSiQue 4-hop datasets.
+            </p>
+            <p class="text-slate-600 dark:text-slate-400 mb-6">
+                Result? SAS is the strongest or tied-for-strongest in the overwhelming majority of settings. Many prior “MAS wins” simply evaporated once extra compute and context were normalized.
+            </p>
+            
+            <div class="figure-container my-12">
+                <img src="https://arxiv.org/html/2604.02460v1/figure/fig1.png" 
+                     alt="Figure 1: Sequential MAS vs Single-Agent comparison from Tran &amp; Kiela (2025)" 
+                     class="w-full mx-auto">
+                <figcaption class="text-center text-sm text-slate-500 dark:text-slate-400 mt-4">
+                    Figure 1 from Tran &amp; Kiela (2025): Sequential MAS is the closest comparator to SAS. Under matched thinking-token budgets SAS dominates.
+                </figcaption>
+            </div>
+            
+            <blockquote class="blockquote p-8 rounded-3xl text-lg italic mb-8">
+                “Many reported advantages of multi-agent systems are better explained by unaccounted computation and context effects rather than inherent architectural superiority.”
+            </blockquote>
+            
+            <p class="text-slate-600 dark:text-slate-400">
+                This is the direct counterpoint to the classic MARL intuition: coordination overhead and inter-message degradation act like partial observability penalties.
+            </p>
+        </section>
+
+        <!-- Takeaway 2 -->
+        <section class="mb-20">
+            <h2 class="text-3xl font-semibold tracking-tighter heading-font mb-4 flex items-baseline gap-x-3">
+                <span class="text-4xl text-sky-500 font-mono">02</span>
+                As frontier LLMs improve in long-context reasoning and tool use, the performance gap between MAS and SAS shrinks dramatically—sometimes reversing
+            </h2>
+            <p class="text-slate-600 dark:text-slate-400 mb-6">
+                Gao et al. (2025) ran the largest head-to-head study across 15 agentic tasks. Their headline observation:
+            </p>
+            <p class="text-slate-600 dark:text-slate-400 mb-8">
+                As LLMs grow more capable, the performance gap narrows on complex tasks while MAS continues to face significant efficiency challenges. In simple tasks, MAS may even underperform SAS due to overthinking.
+            </p>
+            
+            <div class="figure-container my-12">
+                <img src="https://arxiv.org/html/2505.18286v1/figure/fig2.png" 
+                     alt="Figure 2: SAS vs MAS accuracy comparison from Gao et al. (2025)" 
+                     class="w-full mx-auto">
+                <figcaption class="text-center text-sm text-slate-500 dark:text-slate-400 mt-4">
+                    Figure 2 from Gao et al. (2025): SAS achieves comparable accuracy to MAS across datasets, with stronger models benefiting both equally.
+                </figcaption>
+            </div>
+        </section>
+
+        <!-- Takeaway 3 -->
+        <section class="mb-20">
+            <h2 class="text-3xl font-semibold tracking-tighter heading-font mb-4 flex items-baseline gap-x-3">
+                <span class="text-4xl text-sky-500 font-mono">03</span>
+                MAS failure rates remain stubbornly high (41–86 %) and the dominant causes are systemic design flaws, not model hallucinations
+            </h2>
+            <p class="text-slate-600 dark:text-slate-400 mb-6">
+                Cemri et al. (2025) open-sourced MAST-Data—1,642 annotated execution traces—and the first rigorous failure taxonomy (MAST).
+            </p>
+            
+            <div class="figure-container my-12">
+                <img src="https://arxiv.org/html/2503.13657v1/figure/fig1.png" 
+                     alt="MAST Taxonomy of MAS Failure Modes from Cemri et al. (2025)" 
+                     class="w-full mx-auto">
+                <figcaption class="text-center text-sm text-slate-500 dark:text-slate-400 mt-4">
+                    Figure 1 from Cemri et al. (2025): MAST taxonomy of 14 failure modes clustered into System Design Issues, Inter-Agent Misalignment, and Task Verification.
+                </figcaption>
+            </div>
+            
+            <p class="text-slate-600 dark:text-slate-400">These failures persist even when swapping stronger base models. The paper’s intervention studies show modest architectural tweaks can yield +9–15 % success-rate lifts.</p>
+        </section>
+
+        <!-- Takeaway 4 -->
+        <section class="mb-20">
+            <h2 class="text-3xl font-semibold tracking-tighter heading-font mb-4 flex items-baseline gap-x-3">
+                <span class="text-4xl text-sky-500 font-mono">04</span>
+                MAS execution graphs contain identifiable node-, edge-, and path-level defects that pure scaling cannot fix
+            </h2>
+            <p class="text-slate-600 dark:text-slate-400 mb-6">
+                Gao et al. abstract MAS runs as a directed acyclic graph and isolate three recurring bottlenecks: node-level, edge-level, and path-level defects.
+            </p>
+            
+            <div class="figure-container my-12">
+                <img src="https://arxiv.org/html/2505.18286v1/figure/fig3.png" 
+                     alt="Figure 3: Confidence-guided critical path tracing from Gao et al. (2025)" 
+                     class="w-full mx-auto">
+                <figcaption class="text-center text-sm text-slate-500 dark:text-slate-400 mt-4">
+                    Figure 3 from Gao et al. (2025): Lightweight confidence-guided probing to identify critical agents for targeted improvement.
+                </figcaption>
+            </div>
+            
+            <p class="text-slate-600 dark:text-slate-400">Their confidence-guided tracing method identifies the reward bottleneck agent, enabling targeted model upgrades that recover most accuracy gains at far lower cost.</p>
+        </section>
+
+        <!-- Takeaway 5 -->
+        <section class="mb-20">
+            <h2 class="text-3xl font-semibold tracking-tighter heading-font mb-4 flex items-baseline gap-x-3">
+                <span class="text-4xl text-sky-500 font-mono">05</span>
+                Strategic hybrids (routing + cascade) deliver the best accuracy–efficiency Pareto frontier
+            </h2>
+            <p class="text-slate-600 dark:text-slate-400 mb-6">
+                Both Gao et al. and the broader literature converge: <strong>why not both?</strong> Agent-routing and agent-cascade paradigms yield 1.1–12 % accuracy gains while cutting costs by up to 88 %.
+            </p>
+            
+            <div class="figure-container my-12">
+                <img src="https://arxiv.org/html/2505.18286v1/figure/fig4.png" 
+                     alt="Figure 4: Agent routing and cascade performance from Gao et al. (2025)" 
+                     class="w-full mx-auto">
+                <figcaption class="text-center text-sm text-slate-500 dark:text-slate-400 mt-4">
+                    Figure 4 from Gao et al. (2025): Hybrid SAS-MAS routing and cascade achieve superior accuracy-efficiency tradeoffs.
+                </figcaption>
+            </div>
+        </section>
+
+        <!-- Conclusion -->
+        <div class="bg-slate-100 dark:bg-slate-900 rounded-3xl p-10 mb-12">
+            <h2 class="text-3xl font-semibold tracking-tighter heading-font mb-6">The road ahead</h2>
+            <p class="text-lg text-slate-600 dark:text-slate-400 mb-8">
+                These papers collectively suggest that the context-window justification for pure MAS was real — but temporary and narrower than we assumed. As long-context reasoning, KV-cache efficiency, and test-time compute continue to improve, the old MARL wisdom that “one agent that knows all is much better” is reasserting itself faster than many MAS frameworks can adapt.
+            </p>
+            <p class="text-lg font-medium text-slate-700 dark:text-slate-300">
+                The truly interesting question for the next wave of research is no longer “MAS or SAS?” but “<em>when</em> and <em>how</em> should we deliberately introduce controlled partial observability and coordination overhead?”
+            </p>
+            <p class="text-sky-600 mt-8 text-sm font-medium flex items-center gap-x-2">
+                <span>Next in this series →</span> 
+                <span class="underline">Designing Context-Window-Native Multi-Agent Systems</span>
+            </p>
+        </div>
+
+        <!-- Footer / Share -->
+        <div class="flex justify-between items-center border-t border-slate-200 dark:border-slate-800 pt-8 text-sm text-slate-500">
+            <div>
+                © 2026 Multi-Agent Insights • All rights reserved
+            </div>
+            <div class="flex gap-x-6">
+                <a href="#" class="hover:text-slate-900 dark:hover:text-white flex items-center gap-x-1">
+                    <i class="fa-brands fa-x-twitter"></i> Share on X
+                </a>
+                <a href="#" class="hover:text-slate-900 dark:hover:text-white">Discuss on Discord</a>
+            </div>
+            <div class="text-xs">Built with ❤️ for the multi-agent research community</div>
+        </div>
+    </main>
+
+    <script>
+        // Tailwind script already loaded
+        function initializeTailwind() {
+            return {
+                init() {
+                    return {
+                        config(userConfig = {}) {
+                            return {
+                                configUser: userConfig,
+                                defaultTheme: {
+                                    extend: {
+                                        fontFamily: {
+                                            heading: ['Space Grotesk', 'sans-serif']
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        theme(userConfig = {}) {
+                            return {
+                                ...this.defaultTheme,
+                                ...userConfig,
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        console.log('%c✅ Single Agents Strike Back blog post HTML ready', 'color:#0ea5e9; font-family:Space Grotesk; font-size:14px');
+    </script>
+</body>
+</html>

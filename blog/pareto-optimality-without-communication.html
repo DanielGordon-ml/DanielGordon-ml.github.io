@@ -411,7 +411,47 @@
 
         <p>The update rule is small enough to fit on a napkin. Below is a self-contained Python implementation for the 2-player scaled PD above. The full script (including the plotting code that produced Figure 2) is available as <a href="assets/scaled_pd.py">scaled_pd.py</a>.</p>
 
-        <!-- CODE BLOCK + FIGURE 2 PLACEHOLDER — filled in Task 5 -->
+        <pre><code class="language-python">import random
+from dataclasses import dataclass, field
+
+@dataclass
+class Agent:
+    """Completely uncoupled payoff-based learner (Marden-Young-Pao 2014)."""
+    n_actions: int
+    epsilon: float
+    c: int                           # c >= n
+    benchmark_action: int = 0
+    benchmark_payoff: float = 0.0
+    mood: str = "C"                  # "C" (content) or "D" (discontent)
+    rng: random.Random = field(default_factory=random.Random)
+
+    def choose_action(self) -> int:
+        if self.mood == "D":
+            return self.rng.randrange(self.n_actions)
+        # Content: play benchmark with prob 1 - eps^c, else uniform over others.
+        if self.rng.random() &lt; 1.0 - self.epsilon ** self.c:
+            return self.benchmark_action
+        others = [a for a in range(self.n_actions) if a != self.benchmark_action]
+        return self.rng.choice(others)
+
+    def update(self, action: int, payoff: float) -> None:
+        matches = (action == self.benchmark_action
+                   and abs(payoff - self.benchmark_payoff) &lt; 1e-12)
+        if self.mood == "C" and matches:
+            return                   # stay content, benchmark unchanged
+        # Mismatch: adopt new benchmark and (probabilistically) become content.
+        self.benchmark_action = action
+        self.benchmark_payoff = payoff
+        accept_prob = self.epsilon ** (1.0 - payoff)
+        self.mood = "C" if self.rng.random() &lt; accept_prob else "D"
+</code></pre>
+
+        <p>That is the entire learning rule. No gradients, no communication, no model of the opponent. To reproduce the scaled PD, pair two of these agents, draw joint payoffs from the matrix in &sect;4, and iterate. The full runner that produced Figure 2 below is in <a href="assets/scaled_pd.py">scaled_pd.py</a>.</p>
+
+        <figure>
+            <img src="assets/welfare-plot.svg" alt="Welfare versus iteration on the scaled PD, comparing epsilon = 0.05 and epsilon = 0.01 against the Pareto and Nash welfare levels.">
+            <figcaption>Figure 2. Smoothed welfare versus iteration for the scaled PD under the MYP (2014) rule, averaged over 30 trials. Both $\varepsilon$ settings converge above the Nash welfare of $2/3$ and toward the Pareto welfare of $3/2$; smaller $\varepsilon$ commits more strongly once content at the optimum.</figcaption>
+        </figure>
 
         <h2>Final thought</h2>
 

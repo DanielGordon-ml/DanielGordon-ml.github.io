@@ -123,14 +123,22 @@ def main() -> None:
 
     fig, ax = plt.subplots(figsize=(7.2, 4.0), dpi=120)
 
+    top_k = max(1, n_trials // 10)  # top 10% of trials at each timepoint
+
     for eps in epsilons:
         trials = np.stack(
             [run_simulation(eps, n_steps, seed=s) for s in range(n_trials)]
         )
         mean_welfare = trials.mean(axis=0)
-        smoothed = smooth(mean_welfare, window)
-        x = np.arange(len(smoothed)) + window // 2
-        ax.plot(x, smoothed, label=f"ε = {eps}", color=colors[eps], linewidth=2)
+        # Per-timepoint top-10% (best 3 of 30 by welfare at that t).
+        top_welfare = np.sort(trials, axis=0)[-top_k:].mean(axis=0)
+
+        x = np.arange(len(smooth(mean_welfare, window))) + window // 2
+        ax.plot(x, smooth(mean_welfare, window),
+                label=f"ε = {eps} — mean", color=colors[eps], linewidth=2)
+        ax.plot(x, smooth(top_welfare, window),
+                label=f"ε = {eps} — top 10% of trials",
+                color=colors[eps], linewidth=1.3, linestyle=":")
 
     pareto_welfare = 2 * (3 / 4)
     nash_welfare = 2 * (1 / 3)

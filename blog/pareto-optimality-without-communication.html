@@ -380,7 +380,7 @@
             </tbody>
         </table>
 
-        <p>$(B,B)$ is the unique pure Nash equilibrium, yet $(A,A)$ is the unique stochastically stable state under this dynamics. The resistance-tree calculation shows $\gamma(AA)$ is strictly smaller than $\gamma(BB)$ by $4/3$. Simulations with moderate $\varepsilon$ (e.g. $0.01$) reach $\approx 97\%$ of optimal welfare with hitting times of a few thousand iterations.</p>
+        <p>$(B,B)$ is the unique pure Nash equilibrium, yet $(A,A)$ is the unique stochastically stable state under this dynamics. The resistance-tree calculation shows $\gamma(AA)$ is strictly smaller than $\gamma(BB)$ by $4/3$. Simulations (&sect;6) confirm that even at moderate $\varepsilon$ the majority of trials settle at $(A,A)$ within a few hundred iterations &mdash; well before the asymptotic regime where the stochastic-stability argument formally applies.</p>
 
         <blockquote>
             <p><strong>Counter-intuitive punchline.</strong> The algorithm <em>prefers</em> cooperation over defection because high-welfare outcomes are easier for agents to &ldquo;accept&rdquo; into their benchmark (lower resistance $1 - u_i$).</p>
@@ -398,7 +398,7 @@
 
         <h2>6. Practical performance beats the $\varepsilon \to 0$ theoretical limit</h2>
 
-        <p>Simulations (both 2-player and 3-player PD variants) show that <em>intermediate</em> $\varepsilon$ (in the range $0.01$&ndash;$0.05$) delivers $97$&ndash;$99\%$ of optimal welfare with hitting times of hundreds to a few thousand periods &mdash; vastly better than the exponential-in-$1/\varepsilon$ times required for the limiting distribution. Once agents are content at the optimum they stay there with overwhelming probability, but the small persistent exploration ($\varepsilon^{c}$) prevents permanent lock-in.</p>
+        <p>Simulations on the scaled PD make the finite-horizon picture concrete (Figure 2). Within $100$ iterations a majority of trials have already committed to $(A,A)$: about $85\%$ for $\varepsilon = 0.05$ and $60\%$ for $\varepsilon = 0.01$. Mean welfare trails the fraction-at-Pareto because trials that land in a suboptimal basin stay there for many steps before a random mood flip frees them. At this horizon, larger $\varepsilon$ is actually faster &mdash; the acceptance probability $\varepsilon^{1 - u}$ at the Pareto payoff is $\approx 0.47$ for $\varepsilon = 0.05$ but only $\approx 0.32$ for $\varepsilon = 0.01$, so a bigger $\varepsilon$ commits to $(A,A)$ on fewer attempts. Smaller $\varepsilon$ wins asymptotically (its experimentation rate $\varepsilon^{c}$ is lower, so once content it stays put), but reaching that regime requires many more iterations than shown here.</p>
 
         <p><strong>Cons and open questions:</strong></p>
         <ul>
@@ -450,7 +450,7 @@ class Agent:
 
         <figure>
             <img src="assets/welfare-plot.svg" alt="Welfare versus iteration on the scaled PD, comparing epsilon = 0.05 and epsilon = 0.01 against the Pareto and Nash welfare levels.">
-            <figcaption>Figure 2. Smoothed welfare versus iteration for the scaled PD under the MYP (2014) rule, averaged over 30 trials. Both $\varepsilon$ settings converge above the Nash welfare of $2/3$ and toward the Pareto welfare of $3/2$; smaller $\varepsilon$ commits more strongly once content at the optimum.</figcaption>
+            <figcaption>Figure 2. Top: smoothed mean welfare versus iteration for the scaled PD, averaged over 100 trials. Bottom: fraction of trials currently playing the Pareto profile $(A,A)$. Within $100$ iterations $\approx 85\%$ of $\varepsilon = 0.05$ trials and $\approx 60\%$ of $\varepsilon = 0.01$ trials have committed to the Pareto profile. Larger $\varepsilon$ dominates at this horizon because its acceptance probability at the Pareto payoff, $\varepsilon^{1/4}$, is $\approx 0.47$ versus $\approx 0.32$ for $\varepsilon = 0.01$.</figcaption>
         </figure>
 
         <h2>Final thought</h2>

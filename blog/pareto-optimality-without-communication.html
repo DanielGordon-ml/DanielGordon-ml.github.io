@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pareto Optimality Without Communication | Daniel Gordon</title>
+    <meta name="description" content="A close read of Marden, Young & Pao (2014): a payoff-based rule that drives decentralized agents to the welfare-maximizing profile, with zero communication.">
+    <meta property="og:title" content="Pareto Optimality Without Communication">
+    <meta property="og:description" content="A close read of Marden, Young & Pao (2014): zero-communication learning that reaches the welfare-maximizing profile.">
+    <meta property="og:type" content="article">
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" integrity="sha384-nB0miv6/jRmo5UMMR1wu3Gz6NLsoTkbqJghGIsx//Rlm+ZU03BU6SQNC66uf4l5+" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
+
+    <style>
+        :root {
+            --primary: #0f172a;
+            --secondary: #3b82f6;
+            --surface: #1e293b;
+            --border: #334155;
+            --text-primary: #f8fafc;
+            --text-secondary: #e2e8f0;
+            --text-muted: #94a3b8;
+            --text-dim: #64748b;
+            --accent-green: #22c55e;
+            --accent-red: #ef4444;
+        }
+
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        html { scroll-behavior: smooth; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            line-height: 1.7;
+            color: var(--text-secondary);
+            background-color: var(--primary);
+        }
+
+        nav {
+            position: fixed;
+            top: 0; left: 0; right: 0; z-index: 100;
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 0.75rem 2rem;
+            background-color: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .nav-logo {
+            font-size: 1.25rem; font-weight: 700;
+            color: var(--text-primary); text-decoration: none; letter-spacing: 1px;
+        }
+
+        .back-link {
+            color: var(--text-muted); text-decoration: none;
+            font-size: 0.85rem; letter-spacing: 1px; text-transform: uppercase;
+            transition: color 0.2s ease;
+        }
+        .back-link:hover, .back-link:focus-visible { color: var(--secondary); }
+
+        article {
+            max-width: 780px;
+            margin: 0 auto;
+            padding: 7rem 2rem 4rem;
+        }
+
+        .post-meta {
+            display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: center;
+            margin-bottom: 1rem;
+            color: var(--text-dim);
+            font-size: 0.85rem;
+        }
+        .post-meta .dot { color: var(--text-dim); }
+        .post-meta .tag {
+            background-color: var(--surface);
+            color: var(--secondary);
+            padding: 0.2rem 0.7rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            border: 1px solid var(--border);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        article h1 {
+            font-size: 2.2rem; font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 2rem;
+            line-height: 1.25;
+            letter-spacing: -0.01em;
+        }
+
+        article h2 {
+            font-size: 1.45rem; font-weight: 600;
+            color: var(--text-primary);
+            margin-top: 3rem; margin-bottom: 1rem;
+            line-height: 1.3;
+        }
+
+        article h3 {
+            font-size: 1.1rem; font-weight: 600;
+            color: var(--text-primary);
+            margin-top: 2rem; margin-bottom: 0.75rem;
+        }
+
+        article p {
+            margin-bottom: 1.25rem;
+            font-size: 1.02rem;
+        }
+
+        article a {
+            color: var(--secondary);
+            text-decoration: underline;
+            text-underline-offset: 2px;
+            text-decoration-thickness: 1px;
+        }
+        article a:hover, article a:focus-visible { color: #60a5fa; }
+
+        article ul, article ol {
+            margin: 0 0 1.25rem 1.5rem;
+            color: var(--text-secondary);
+        }
+        article li { margin-bottom: 0.4rem; }
+
+        article strong { color: var(--text-primary); }
+        article em { color: var(--text-secondary); }
+
+        article blockquote {
+            border-left: 3px solid var(--secondary);
+            padding: 0.75rem 1.25rem;
+            margin: 1.5rem 0;
+            background-color: var(--surface);
+            color: var(--text-secondary);
+            border-radius: 0 6px 6px 0;
+        }
+        article blockquote p:last-child { margin-bottom: 0; }
+
+        article pre {
+            background-color: var(--surface) !important;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 1.25rem;
+            overflow-x: auto;
+            margin: 1.5rem 0;
+            font-size: 0.88rem;
+            line-height: 1.55;
+        }
+        article code {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+            font-size: 0.92em;
+        }
+        article p code, article li code {
+            background-color: var(--surface);
+            color: var(--text-primary);
+            padding: 0.1rem 0.4rem;
+            border-radius: 4px;
+            border: 1px solid var(--border);
+        }
+
+        article table {
+            border-collapse: collapse;
+            margin: 1.5rem auto;
+            font-size: 0.95rem;
+        }
+        article th, article td {
+            border: 1px solid var(--border);
+            padding: 0.5rem 1rem;
+            text-align: center;
+        }
+        article th {
+            background-color: var(--surface);
+            color: var(--text-primary);
+            font-weight: 600;
+        }
+
+        figure {
+            margin: 2.5rem 0;
+            text-align: center;
+        }
+        figure svg, figure img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 8px;
+            background-color: var(--surface);
+            border: 1px solid var(--border);
+        }
+        figcaption {
+            margin-top: 0.75rem;
+            color: var(--text-muted);
+            font-size: 0.85rem;
+            font-style: italic;
+        }
+
+        .references {
+            margin-top: 3rem;
+            padding-top: 2rem;
+            border-top: 1px solid var(--border);
+            font-size: 0.92rem;
+        }
+        .references h2 { margin-top: 0; }
+        .references ol {
+            list-style: decimal;
+            color: var(--text-muted);
+        }
+        .references li { margin-bottom: 0.6rem; }
+
+        footer {
+            text-align: center;
+            padding: 2rem;
+            color: var(--text-dim);
+            font-size: 0.85rem;
+            border-top: 1px solid var(--border);
+        }
+
+        *:focus-visible {
+            outline: 2px solid var(--secondary);
+            outline-offset: 2px;
+        }
+
+        /* KaTeX dark-theme tuning */
+        .katex { color: var(--text-primary); }
+        .katex-display { overflow-x: auto; overflow-y: hidden; padding: 0.5rem 0; }
+
+        @media (max-width: 768px) {
+            nav { padding: 0.5rem 1rem; }
+            article { padding: 6rem 1.25rem 3rem; }
+            article h1 { font-size: 1.7rem; }
+            article h2 { font-size: 1.25rem; }
+            article pre { font-size: 0.8rem; padding: 1rem; }
+        }
+    </style>
+</head>
+<body>
+
+    <nav>
+        <a href="../" class="nav-logo">DG</a>
+        <a href="../#blog" class="back-link">&larr; Back to Blog</a>
+    </nav>
+
+    <article>
+        <div class="post-meta">
+            <span>Apr 22, 2026</span>
+            <span class="dot">&middot;</span>
+            <span>~15 min read</span>
+            <span class="tag">Multi-Agent RL</span>
+            <span class="tag">Game Theory</span>
+            <span class="tag">Stochastic Stability</span>
+        </div>
+
+        <h1>Pareto Optimality Without Communication: A Close Read of Marden, Young &amp; Pao (2014)</h1>
+
+        <!-- BODY PLACEHOLDER — filled in Task 3 -->
+        <p><em>Body coming in Task 3.</em></p>
+
+    </article>
+
+    <footer>
+        &copy; 2026 Daniel Gordon
+    </footer>
+
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js" integrity="sha384-7zkQWkzuo3B5mTepMUcHkMB5jZaolc2xDwL6VFqjFALcbeS9Ggm/Yr2r3Dy4lfFg" crossorigin="anonymous"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js" integrity="sha384-43gviWU0YVjaDtb/GhzOouOXtZMP/7XUzwPTstBeZFe/+rCMvRwr4yROQP43s0Xk" crossorigin="anonymous"
+        onload="renderMathInElement(document.body, {delimiters: [{left: '$$', right: '$$', display: true}, {left: '$', right: '$', display: false}], throwOnError: false});"></script>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/python.min.js"></script>
+    <script>hljs.highlightAll();</script>
+
+</body>
+</html>

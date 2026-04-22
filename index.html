@@ -313,7 +313,7 @@
         /* ── Blog Grid ── */
         .blog-grid {
             display: grid;
-            grid-template-columns: 1fr 1fr;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
             gap: 1.5rem;
         }
 
@@ -735,6 +735,13 @@
             <h2 class="section-title">Blog</h2>
 
             <div class="blog-grid">
+                <a href="blog/pareto-optimality-without-communication.html" class="blog-card">
+                    <div class="blog-card-date">Apr 22, 2026</div>
+                    <h3>Pareto Optimality Without Communication</h3>
+                    <p>A close read of Marden, Young &amp; Pao (2014): a payoff-based rule that drives decentralized agents to the welfare-maximizing profile, with zero communication.</p>
+                    <span class="read-more">Read more &rarr;</span>
+                </a>
+
                 <a href="blog/agentic-ai-banking.html" class="blog-card">
                     <div class="blog-card-date">Coming Soon</div>
                     <h3>Agentic AI in Banking: Lessons from Building Production Systems</h3>

@@ -97,9 +97,9 @@ def smooth(values: np.ndarray, window: int) -> np.ndarray:
 
 
 def main() -> None:
-    n_steps = 1000
-    n_trials = 30
-    window = 200
+    n_steps = 50
+    n_trials = 100
+    window = 5
 
     epsilons = [0.05, 0.01]
     colors = {0.05: "#60a5fa", 0.01: "#3b82f6"}

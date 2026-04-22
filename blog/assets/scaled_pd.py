@@ -97,7 +97,7 @@ def smooth(values: np.ndarray, window: int) -> np.ndarray:
 
 
 def main() -> None:
-    n_steps = 50
+    n_steps = 100
     n_trials = 100
     window = 5
 

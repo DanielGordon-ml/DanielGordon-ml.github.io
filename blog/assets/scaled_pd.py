@@ -121,38 +121,44 @@ def main() -> None:
         }
     )
 
-    fig, ax = plt.subplots(figsize=(7.2, 4.0), dpi=120)
+    fig, (ax_top, ax_bot) = plt.subplots(
+        2, 1, figsize=(7.2, 6.4), dpi=120, sharex=True,
+        gridspec_kw={"height_ratios": [1, 1], "hspace": 0.18},
+    )
 
-    top_k = max(1, n_trials // 10)  # top 10% of trials at each timepoint
+    pareto_welfare = 2 * (3 / 4)  # joint welfare at (A, A)
 
     for eps in epsilons:
         trials = np.stack(
             [run_simulation(eps, n_steps, seed=s) for s in range(n_trials)]
         )
         mean_welfare = trials.mean(axis=0)
-        # Per-timepoint top-10% (best 3 of 30 by welfare at that t).
-        top_welfare = np.sort(trials, axis=0)[-top_k:].mean(axis=0)
+        # (A, A) is the only joint action with total welfare == 1.5 in this PD.
+        pareto_fraction = (trials == pareto_welfare).mean(axis=0)
 
         x = np.arange(len(smooth(mean_welfare, window))) + window // 2
-        ax.plot(x, smooth(mean_welfare, window),
-                label=f"ε = {eps} — mean", color=colors[eps], linewidth=2)
-        ax.plot(x, smooth(top_welfare, window),
-                label=f"ε = {eps} — top 10% of trials",
-                color=colors[eps], linewidth=1.3, linestyle=":")
+        ax_top.plot(x, smooth(mean_welfare, window),
+                    label=f"ε = {eps}", color=colors[eps], linewidth=2)
+        ax_bot.plot(x, smooth(pareto_fraction, window),
+                    label=f"ε = {eps}", color=colors[eps], linewidth=2)
 
-    pareto_welfare = 2 * (3 / 4)
     nash_welfare = 2 * (1 / 3)
-    ax.axhline(pareto_welfare, color="#22c55e", linestyle="--", linewidth=1,
-               label=f"Pareto optimum W = {pareto_welfare:.2f}")
-    ax.axhline(nash_welfare, color="#ef4444", linestyle="--", linewidth=1,
-               label=f"Nash W = {nash_welfare:.2f}")
+    ax_top.axhline(pareto_welfare, color="#22c55e", linestyle="--", linewidth=1,
+                   label=f"Pareto optimum W = {pareto_welfare:.2f}")
+    ax_top.axhline(nash_welfare, color="#ef4444", linestyle="--", linewidth=1,
+                   label=f"Nash W = {nash_welfare:.2f}")
 
-    ax.set_xlabel("Iteration")
-    ax.set_ylabel("Welfare (smoothed, mean over trials)")
-    ax.set_title("Scaled PD: welfare under the MYP (2014) learning rule")
-    ax.set_ylim(0.5, 1.75)
-    ax.grid(True, alpha=0.4)
-    ax.legend(loc="lower right", facecolor="#1e293b", edgecolor="#334155")
+    ax_top.set_ylabel("Mean welfare (smoothed)")
+    ax_top.set_title("Scaled PD under the MYP (2014) learning rule")
+    ax_top.set_ylim(0.5, 1.75)
+    ax_top.grid(True, alpha=0.4)
+    ax_top.legend(loc="lower right", facecolor="#1e293b", edgecolor="#334155")
+
+    ax_bot.set_xlabel("Iteration")
+    ax_bot.set_ylabel("Fraction of trials at (A, A)")
+    ax_bot.set_ylim(-0.02, 1.02)
+    ax_bot.grid(True, alpha=0.4)
+    ax_bot.legend(loc="lower right", facecolor="#1e293b", edgecolor="#334155")
 
     out_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "welfare-plot.svg")
     fig.tight_layout()

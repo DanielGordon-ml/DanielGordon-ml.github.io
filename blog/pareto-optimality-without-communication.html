@@ -251,8 +251,131 @@
 
         <h1>Pareto Optimality Without Communication: A Close Read of Marden, Young &amp; Pao (2014)</h1>
 
-        <!-- BODY PLACEHOLDER — filled in Task 3 -->
-        <p><em>Body coming in Task 3.</em></p>
+        <p>In multi-agent reinforcement learning (MARL), the holy grail is often <em>coordination without coordination</em> &mdash; agents that achieve system-wide efficiency despite having no model of the environment, no knowledge of others' actions or utilities, and zero communication. Most payoff-based or regret-minimizing algorithms settle for Nash equilibria, which can be arbitrarily inefficient.</p>
+
+        <p>A landmark 2014 paper by Jason R. Marden, H. Peyton Young, and Lucy Y. Pao (<a href="https://doi.org/10.1109/TAC.2014.2301150" target="_blank" rel="noopener noreferrer">&ldquo;Achieving Pareto Optimality Through Distributed Learning&rdquo;</a>) shows this is <em>not</em> inevitable. They introduce a completely uncoupled, payoff-based learning rule that, in any finite $n$-person game with generic payoffs (and a mild interdependence condition), makes the <strong>welfare-maximizing</strong> action profile stochastically stable. Agents only ever observe their own past actions and realized payoffs &mdash; yet the system reliably locks onto the Pareto optimal outcome.</p>
+
+        <p>Here are the six most surprising, counter-intuitive, and impactful takeaways &mdash; with the math, the intuition, and the MARL implications.</p>
+
+        <h2>1. Completely payoff-based (uncoupled) learning can reach global efficiency in <em>arbitrary</em> games</h2>
+
+        <p>Traditional distributed optimization or MARL often requires convexity, potential-game structure, or communication graphs. This algorithm needs none of that. Each agent $i$ maintains only a <em>benchmark action</em> $\bar a_i \in A_i$, a <em>benchmark payoff</em> $\bar u_i \in \mathrm{range}(U_i)$, and a binary <em>mood</em> $m_i \in \{C, D\}$ (&ldquo;content&rdquo; or &ldquo;discontent&rdquo;). The update rule is purely a function of the agent's own history:</p>
+
+        <p>$$p_i(t) \;=\; F_i\Big( \big\{\, (a_i(\tau),\, U_i(a(\tau))) \,\big\}_{\tau = 0 \ldots t-1} \Big)$$</p>
+
+        <p>No other agents' actions or utilities are ever observed. Yet the joint process converges (in the sense of stochastic stability) to the action profile $a^\ast$ that maximizes $W(a) = \sum_i U_i(a)$.</p>
+
+        <blockquote>
+            <p><strong>Why this matters for MARL.</strong> This is model-free, communication-free MARL that solves general-sum coordination problems where potential-game or consensus-based methods fail &mdash; e.g. wind-farm control with unknown aerodynamic wake interactions.</p>
+        </blockquote>
+
+        <h2>2. The mood dynamics are minimalist &mdash; yet mathematically perfect for exploration/exploitation</h2>
+
+        <p>Fix small $\varepsilon > 0$ (exploration rate) and $c \ge n$. Agent dynamics:</p>
+
+        <p><strong>Content ($m_i = C$):</strong></p>
+        <p>$$p_i^{\bar a_i} = 1 - \varepsilon^{c}, \qquad p_i^{a_i} = \frac{\varepsilon^{c}}{|A_i| - 1} \;\text{ for } a_i \ne \bar a_i.$$</p>
+
+        <p><strong>Discontent ($m_i = D$):</strong></p>
+        <p>$$p_i^{a_i} = \frac{1}{|A_i|} \;\text{ for all } a_i.$$</p>
+
+        <p>After playing $a_i$ and receiving $u_i = U_i(a_i, a_{-i})$, the state update is deterministic on the <em>match</em> and probabilistic on the <em>mismatch</em>:</p>
+
+        <ul>
+            <li>If content and $(a_i, u_i)$ exactly matches the benchmark &rarr; stay content.</li>
+            <li>Otherwise &rarr; set new benchmark to $(a_i, u_i)$ and become content with probability $\varepsilon^{\,1 - u_i}$, discontent with probability $1 - \varepsilon^{\,1 - u_i}$.</li>
+        </ul>
+
+        <p>The exponent $1 - u_i$ makes high-payoff outcomes &ldquo;stickier&rdquo; &mdash; lower resistance to acceptance. A single scalar $\varepsilon$ controls the entire exploration/exploitation tradeoff across the population.</p>
+
+        <blockquote>
+            <p><strong>Reflection.</strong> Two moods and one benchmark pair replace the four-mood machinery (content / discontent / hopeful / watchful) of earlier regret-testing algorithms. Simpler, yet stronger guarantees.</p>
+        </blockquote>
+
+        <h2>3. Stochastic stability via resistance trees selects exactly the welfare-maximizing states</h2>
+
+        <p>The joint state space is $Z = \prod_i \big(A_i \times U_i \times \{C, D\}\big)$. The dynamics form a regular perturbed Markov chain $P^{\varepsilon}$. When $\varepsilon = 0$, the unperturbed process $P^{0}$ has recurrence classes: the singletons $C^{0}$ (all agents content <em>and</em> benchmarks aligned with the current action profile) plus one big class $D^{0}$ (all discontent).</p>
+
+        <p>Using Young's resistance-tree method, the <em>stochastic potential</em> of any $z = [\bar a, \bar u] \in C^{0}$ is</p>
+
+        <p>$$\gamma(z) \;=\; c\,(|C^{0}| - 1) + \sum_i (1 - \bar u_i) \;=\; c\,(|C^{0}| - 1) + n - W(\bar a).$$</p>
+
+        <p>The efficient profiles minimize this potential (equivalently, maximize $W(\bar a)$). All other states have strictly higher potential. Hence, as $\varepsilon \to 0$, the stationary distribution $\mu^{\varepsilon}$ concentrates on the unique (or all tied) welfare-maximizing content states.</p>
+
+        <p><strong>Key resistance facts:</strong></p>
+        <ul>
+            <li>$r(z \to D) = c$ (one agent must experiment)</li>
+            <li>$r(D \to z) = n - W(\bar a)$ (each agent must &ldquo;accept&rdquo; its benchmark payoff)</li>
+            <li>$r(z \to z') \in [c, 2c)$ for $z \ne z' \in C^{0}$</li>
+        </ul>
+
+        <!-- FIGURE 1 PLACEHOLDER — filled in Task 4 -->
+
+        <p>The math is clean, elegant, and directly imported from large-deviations theory &mdash; a bridge between evolutionary game theory and distributed control.</p>
+
+        <h2>4. It achieves Pareto optimality <em>even when that outcome is not a Nash equilibrium</em></h2>
+
+        <p>Classic result: in the scaled Prisoner's Dilemma</p>
+
+        <table>
+            <thead>
+                <tr><th></th><th>A</th><th>B</th></tr>
+            </thead>
+            <tbody>
+                <tr><th>A</th><td>3/4,&nbsp;3/4</td><td>0,&nbsp;4/5</td></tr>
+                <tr><th>B</th><td>4/5,&nbsp;0</td><td>1/3,&nbsp;1/3</td></tr>
+            </tbody>
+        </table>
+
+        <p>$(B,B)$ is the unique pure Nash equilibrium, yet $(A,A)$ is the unique stochastically stable state under this dynamics. The resistance-tree calculation shows $\gamma(AA)$ is strictly smaller than $\gamma(BB)$ by $4/3$. Simulations with moderate $\varepsilon$ (e.g. $0.01$) reach $\approx 97\%$ of optimal welfare with hitting times of a few thousand iterations.</p>
+
+        <blockquote>
+            <p><strong>Counter-intuitive punchline.</strong> The algorithm <em>prefers</em> cooperation over defection because high-welfare outcomes are easier for agents to &ldquo;accept&rdquo; into their benchmark (lower resistance $1 - u_i$).</p>
+        </blockquote>
+
+        <h2>5. Interdependence is necessary &mdash; and there is a fundamental impossibility result</h2>
+
+        <p><strong>Definition (Interdependence).</strong> No proper subset of agents can be isolated; every coalition interacts with its complement.</p>
+
+        <p>Without it, inefficient profiles can become stochastically stable (the paper gives an explicit 2-player counter-example). Moreover, Proposition 4 proves there exists <em>no</em> uncoupled learning algorithm that guarantees efficiency in <em>all</em> finite games. The interdependence condition is tight.</p>
+
+        <blockquote>
+            <p><strong>MARL lesson.</strong> Any claim of &ldquo;universal&rdquo; decentralized optimality must confront this combinatorial barrier.</p>
+        </blockquote>
+
+        <h2>6. Practical performance beats the $\varepsilon \to 0$ theoretical limit</h2>
+
+        <p>Simulations (both 2-player and 3-player PD variants) show that <em>intermediate</em> $\varepsilon$ (in the range $0.01$&ndash;$0.05$) delivers $97$&ndash;$99\%$ of optimal welfare with hitting times of hundreds to a few thousand periods &mdash; vastly better than the exponential-in-$1/\varepsilon$ times required for the limiting distribution. Once agents are content at the optimum they stay there with overwhelming probability, but the small persistent exploration ($\varepsilon^{c}$) prevents permanent lock-in.</p>
+
+        <p><strong>Cons and open questions:</strong></p>
+        <ul>
+            <li>Hitting times grow rapidly as $\varepsilon$ shrinks.</li>
+            <li>The dynamics exhibit <em>commitment</em>: the system &ldquo;locks&rdquo; onto one profile and only rarely escapes &mdash; useful for stability, costly for adaptability in non-stationary environments.</li>
+            <li>Compared with Pradelski &amp; Young [2] (which adds transitional moods to target Pareto-Nash equilibria), this rule sacrifices Nash guarantees for pure welfare maximization &mdash; a deliberate design choice with real engineering payoff.</li>
+        </ul>
+
+        <h3>From math to code: reproducing the scaled PD</h3>
+
+        <p>The update rule is small enough to fit on a napkin. Below is a self-contained Python implementation for the 2-player scaled PD above. The full script (including the plotting code that produced Figure 2) is available as <a href="assets/scaled_pd.py">scaled_pd.py</a>.</p>
+
+        <!-- CODE BLOCK + FIGURE 2 PLACEHOLDER — filled in Task 5 -->
+
+        <h2>Final thought</h2>
+
+        <p>Marden, Young &amp; Pao's algorithm is one of those rare results that feels almost too good to be true: a handful of local rules, zero communication, and global optimality emerges from stochastic stability. For MARL researchers building systems that must operate under extreme information constraints &mdash; wind farms, ad-hoc networks, large-scale robotics &mdash; it remains a foundational blueprint.</p>
+
+        <p>The lingering question: can we marry this mood-based stochastic stability with modern deep-RL function approximation and partial observability while preserving the same asymptotic welfare guarantees? The theory is there. The next breakthrough is waiting in the code.</p>
+
+        <div class="references">
+            <h2>References</h2>
+            <ol>
+                <li>Marden, J. R., Young, H. P., &amp; Pao, L. Y. (2014). <em>Achieving Pareto Optimality Through Distributed Learning.</em> SIAM Journal on Control and Optimization, 52(5), 2753&ndash;2770. <a href="https://doi.org/10.1137/110850694" target="_blank" rel="noopener noreferrer">doi:10.1137/110850694</a></li>
+                <li>Pradelski, B. S. R., &amp; Young, H. P. (2012). <em>Learning efficient Nash equilibria in distributed systems.</em> Games and Economic Behavior, 75(2), 882&ndash;897.</li>
+                <li>Young, H. P. (1993). <em>The evolution of conventions.</em> Econometrica, 61(1), 57&ndash;84. (Origin of the resistance-tree method used throughout.)</li>
+                <li>Foster, D. P., &amp; Young, H. P. (2006). <em>Regret testing: learning to play Nash equilibrium without knowing you have an opponent.</em> Theoretical Economics, 1(3), 341&ndash;367.</li>
+                <li>Marden, J. R., Arslan, G., &amp; Shamma, J. S. (2009). <em>Cooperative control and potential games.</em> IEEE Transactions on Systems, Man, and Cybernetics, Part B, 39(6), 1393&ndash;1407.</li>
+            </ol>
+        </div>
 
     </article>
 

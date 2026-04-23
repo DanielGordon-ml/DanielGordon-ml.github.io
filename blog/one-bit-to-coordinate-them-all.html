@@ -418,7 +418,7 @@ def run_step(agents):
             a.increment(actions[i])
 </code></pre>
 
-        <p>That is the entire learning rule. No gradients, no observations of other agents, no benchmark machinery. To reproduce the simulation, instantiate one <code>Agent</code> per player, define the joint utility function, and iterate. The full runner that produced Figure 2 below &mdash; a hand-tuned 3-agent, 2-action coordination game where $a^* = (1,1,1)$ pays 0.95 to every player and every other profile pays 0.05 &mdash; is in <a href="assets/sbc_pe.py">sbc_pe.py</a>.</p>
+        <p>That is the entire learning rule. No gradients, no observations of other agents, no benchmark machinery. To reproduce the simulation, instantiate one <code>Agent</code> per player, define the joint utility function, and iterate. The full runner that produced Figure 2 below , a hand-tuned 3-agent, 2-action coordination game where $a^* = (1,1,1)$ pays 0.95 to every player and every other profile pays 0.05 , is in <a href="assets/sbc_pe.py">sbc_pe.py</a>.</p>
 
         <figure>
             <img src="assets/sbc-pe-welfare.svg" alt="Welfare versus exploration round for SBC-PE on a 3-agent binary-action coordination game, comparing epsilon = 0.1, 0.2, and 0.4.">

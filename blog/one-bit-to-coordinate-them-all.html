@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>One Bit to Coordinate Them All | Daniel Gordon</title>
+    <meta name="description" content="A close read of Kiremitci, Donmez & Sayin (2025): SBC-PE achieves exact Pareto optimality in arbitrary finite games using one bit of feedback per agent per round, with provable logarithmic regret.">
+    <meta property="og:title" content="One Bit to Coordinate Them All">
+    <meta property="og:description" content="How SBC-PE achieves exact Pareto optimality in multi-agent games with one bit of feedback per round and provable logarithmic regret.">
+    <meta property="og:type" content="article">
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" integrity="sha384-nB0miv6/jRmo5UMMR1wu3Gz6NLsoTkbqJghGIsx//Rlm+ZU03BU6SQNC66uf4l5+" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css" integrity="sha512-Jk4AqjWsdSzSWCSuQTfYRIF84Rq/eV0G2+tu07byYwHcbTGfdmLrHjUSwvzp5HvbiqK4ibmNwdcG49Y5RGYPTg==" crossorigin="anonymous" referrerpolicy="no-referrer">
+
+    <style>
+        :root {
+            --primary: #0f172a;
+            --secondary: #3b82f6;
+            --surface: #1e293b;
+            --border: #334155;
+            --text-primary: #f8fafc;
+            --text-secondary: #e2e8f0;
+            --text-muted: #94a3b8;
+            --text-dim: #64748b;
+            --accent-green: #22c55e;
+            --accent-red: #ef4444;
+        }
+
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        html { scroll-behavior: smooth; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            line-height: 1.7;
+            color: var(--text-secondary);
+            background-color: var(--primary);
+        }
+
+        nav {
+            position: fixed;
+            top: 0; left: 0; right: 0; z-index: 100;
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 0.75rem 2rem;
+            background-color: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .nav-logo {
+            font-size: 1.25rem; font-weight: 700;
+            color: var(--text-primary); text-decoration: none; letter-spacing: 1px;
+        }
+
+        .back-link {
+            color: var(--text-muted); text-decoration: none;
+            font-size: 0.85rem; letter-spacing: 1px; text-transform: uppercase;
+            transition: color 0.2s ease;
+        }
+        .back-link:hover, .back-link:focus-visible { color: var(--secondary); }
+
+        article {
+            max-width: 780px;
+            margin: 0 auto;
+            padding: 7rem 2rem 4rem;
+        }
+
+        .post-meta {
+            display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: center;
+            margin-bottom: 1rem;
+            color: var(--text-dim);
+            font-size: 0.85rem;
+        }
+        .post-meta .dot { color: var(--text-dim); }
+        .post-meta .tag {
+            background-color: var(--surface);
+            color: var(--secondary);
+            padding: 0.2rem 0.7rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            border: 1px solid var(--border);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        article h1 {
+            font-size: 2.2rem; font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 2rem;
+            line-height: 1.25;
+            letter-spacing: -0.01em;
+        }
+
+        article h2 {
+            font-size: 1.45rem; font-weight: 600;
+            color: var(--text-primary);
+            margin-top: 3rem; margin-bottom: 1rem;
+            line-height: 1.3;
+        }
+
+        article h3 {
+            font-size: 1.1rem; font-weight: 600;
+            color: var(--text-primary);
+            margin-top: 2rem; margin-bottom: 0.75rem;
+        }
+
+        article p {
+            margin-bottom: 1.25rem;
+            font-size: 1.02rem;
+        }
+
+        article a {
+            color: var(--secondary);
+            text-decoration: underline;
+            text-underline-offset: 2px;
+            text-decoration-thickness: 1px;
+        }
+        article a:hover, article a:focus-visible { color: #60a5fa; }
+
+        article ul, article ol {
+            margin: 0 0 1.25rem 1.5rem;
+            color: var(--text-secondary);
+        }
+        article li { margin-bottom: 0.4rem; }
+
+        article strong { color: var(--text-primary); }
+        article em { color: var(--text-secondary); }
+
+        article blockquote {
+            border-left: 3px solid var(--secondary);
+            padding: 0.75rem 1.25rem;
+            margin: 1.5rem 0;
+            background-color: var(--surface);
+            color: var(--text-secondary);
+            border-radius: 0 6px 6px 0;
+        }
+        article blockquote p:last-child { margin-bottom: 0; }
+
+        article pre {
+            background-color: var(--surface) !important;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 1.25rem;
+            overflow-x: auto;
+            margin: 1.5rem 0;
+            font-size: 0.88rem;
+            line-height: 1.55;
+        }
+        article code {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+            font-size: 0.92em;
+        }
+        article p code, article li code {
+            background-color: var(--surface);
+            color: var(--text-primary);
+            padding: 0.1rem 0.4rem;
+            border-radius: 4px;
+            border: 1px solid var(--border);
+        }
+
+        article table {
+            border-collapse: collapse;
+            margin: 1.5rem auto;
+            font-size: 0.95rem;
+        }
+        article th, article td {
+            border: 1px solid var(--border);
+            padding: 0.5rem 1rem;
+            text-align: center;
+        }
+        article th {
+            background-color: var(--surface);
+            color: var(--text-primary);
+            font-weight: 600;
+        }
+
+        figure {
+            margin: 2.5rem 0;
+            text-align: center;
+        }
+        figure svg, figure img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 8px;
+            background-color: var(--surface);
+            border: 1px solid var(--border);
+        }
+        figcaption {
+            margin-top: 0.75rem;
+            color: var(--text-muted);
+            font-size: 0.85rem;
+            font-style: italic;
+        }
+
+        .references {
+            margin-top: 3rem;
+            padding-top: 2rem;
+            border-top: 1px solid var(--border);
+            font-size: 0.92rem;
+        }
+        .references h2 { margin-top: 0; }
+        .references ol {
+            list-style: decimal;
+            color: var(--text-muted);
+        }
+        .references li { margin-bottom: 0.6rem; }
+
+        footer {
+            text-align: center;
+            padding: 2rem;
+            color: var(--text-dim);
+            font-size: 0.85rem;
+            border-top: 1px solid var(--border);
+        }
+
+        *:focus-visible {
+            outline: 2px solid var(--secondary);
+            outline-offset: 2px;
+        }
+
+        /* KaTeX dark-theme tuning */
+        .katex { color: var(--text-primary); }
+        .katex-display { overflow-x: auto; overflow-y: hidden; padding: 0.5rem 0; }
+
+        @media (max-width: 768px) {
+            nav { padding: 0.5rem 1rem; }
+            article { padding: 6rem 1.25rem 3rem; }
+            article h1 { font-size: 1.7rem; }
+            article h2 { font-size: 1.25rem; }
+            article pre { font-size: 0.8rem; padding: 1rem; }
+        }
+    </style>
+</head>
+<body>
+
+    <nav aria-label="Primary">
+        <a href="../" class="nav-logo">DG</a>
+        <a href="../#blog" class="back-link">&larr; Back to Blog</a>
+    </nav>
+
+    <article>
+        <div class="post-meta">
+            <span>Apr 23, 2026</span>
+            <span class="dot">&middot;</span>
+            <span>~10 min read</span>
+            <span class="tag">Multi-Agent RL</span>
+            <span class="tag">Game Theory</span>
+            <span class="tag">Paper Review</span>
+        </div>
+
+        <h1>One Bit to Coordinate Them All: How SBC-PE Achieves Exact Pareto Optimality in Multi-Agent Games</h1>
+
+        <p>In multi-agent reinforcement learning (MARL), the dream is simple yet extremely hard: get autonomous agents to jointly maximize social welfare while barely talking to each other. Most payoff-based rules get you <em>somewhere</em> near efficient outcomes with zero communication, but they come with asymptotic hand-waving and no finite-time guarantees. Communication-heavy methods deliver stronger results at the cost of bandwidth that real-world systems , sensor networks, robot swarms, spectrum sharing, and even LLMs , simply cannot afford.</p>
+
+        <p>What if <strong>one bit per agent per round</strong> was enough to reach the exact socially optimal joint action, with provable logarithmic regret?</p>
+
+        <p>The new paper &ldquo;Achieving Pareto Optimality in Games via Single-bit Feedback&rdquo; [1] introduces <strong>Single-Bit Coordination Dynamics for Pareto-Efficient Outcomes (SBC-PE)</strong> and delivers exactly that.</p>
+
+        <h2>One bit is enough for exact global coordination</h2>
+
+        <p>The headline result feels almost magical: agents broadcast a <strong>single satisfaction bit</strong> $m_i^t \in \{0,1\}$ each round and still converge to the unique welfare-maximizing joint action $a^*$.</p>
+
+        <p>During an exploration phase of length $K$, every agent $i$ samples $a_i^t \sim \text{Uniform}(A_i)$, observes its local utility $u_i(a^t)$, and constructs its bit as</p>
+
+        <p>$$m_i^t = \begin{cases} 1 &amp; \text{w.p. } \varepsilon^{\,1 - w_i u_i^t} \text{ if } u_i^t > \lambda_i \\ 0 &amp; \text{otherwise} \end{cases}$$</p>
+
+        <p>(Equation 3 in [1]). Each agent only increments its local counter $c_i(a_i)$ for the action it just played <em>if every agent broadcasts 1 that round</em>.</p>
+
+        <p>After exploration, each agent greedily picks $\bar a_i = \arg\max_{a_i} c_i(a_i)$ and commits forever.</p>
+
+        <p><strong>Why this is surprising.</strong> No agent ever sees another&rsquo;s action or payoff. Yet the collective &ldquo;all-satisfied&rdquo; signal encodes enough global information to identify the optimum. The authors prove that the probability all agents endorse a feasible joint action $a$ is exactly</p>
+
+        <p>$$P(m^t = \mathbf{1} \mid a^t = a) = \varepsilon^{\,n - W(a)}$$</p>
+
+        <p>for $a \in A_\lambda$ (and zero otherwise), where $W(a) = \sum_i w_i u_i(a)$ is the weighted social welfare (Equation 8 in [1]). This turns uniform random exploration into a biased sampler that overwhelmingly favors high-welfare profiles.</p>
+
+        <figure>
+            <svg viewBox="0 0 640 360" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="fig1-title fig1-desc">
+                <title id="fig1-title">SBC-PE single-bit endorsement protocol</title>
+                <desc id="fig1-desc">Three agent nodes each emit a one-bit endorsement m_i into a logical AND gate. If all three bits are one, every agent's local action counter for the just-played joint action is incremented.</desc>
+
+                <defs>
+                    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+                        <path d="M0,0 L10,5 L0,10 z" fill="#94a3b8"/>
+                    </marker>
+                </defs>
+
+                <!-- Three agent circles -->
+                <circle cx="70" cy="70" r="38" fill="#1e293b" stroke="#3b82f6" stroke-width="2"/>
+                <text x="70" y="66" text-anchor="middle" fill="#f8fafc" font-family="sans-serif" font-size="14" font-weight="600">Agent 1</text>
+                <text x="70" y="84" text-anchor="middle" fill="#94a3b8" font-family="sans-serif" font-size="11">obs u&#8321;</text>
+
+                <circle cx="70" cy="180" r="38" fill="#1e293b" stroke="#3b82f6" stroke-width="2"/>
+                <text x="70" y="176" text-anchor="middle" fill="#f8fafc" font-family="sans-serif" font-size="14" font-weight="600">Agent 2</text>
+                <text x="70" y="194" text-anchor="middle" fill="#94a3b8" font-family="sans-serif" font-size="11">obs u&#8322;</text>
+
+                <circle cx="70" cy="290" r="38" fill="#1e293b" stroke="#3b82f6" stroke-width="2"/>
+                <text x="70" y="286" text-anchor="middle" fill="#f8fafc" font-family="sans-serif" font-size="14" font-weight="600">Agent 3</text>
+                <text x="70" y="304" text-anchor="middle" fill="#94a3b8" font-family="sans-serif" font-size="11">obs u&#8323;</text>
+
+                <!-- Arrows from agents to AND gate -->
+                <line x1="115" y1="70" x2="280" y2="140" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arrow)"/>
+                <text x="195" y="98" text-anchor="middle" fill="#60a5fa" font-family="sans-serif" font-size="13">m&#8321; &#8712; {0, 1}</text>
+
+                <line x1="115" y1="180" x2="280" y2="180" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arrow)"/>
+                <text x="195" y="172" text-anchor="middle" fill="#60a5fa" font-family="sans-serif" font-size="13">m&#8322; &#8712; {0, 1}</text>
+
+                <line x1="115" y1="290" x2="280" y2="220" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arrow)"/>
+                <text x="195" y="265" text-anchor="middle" fill="#60a5fa" font-family="sans-serif" font-size="13">m&#8323; &#8712; {0, 1}</text>
+
+                <!-- AND gate (D shape) -->
+                <path d="M 280 100 L 365 100 A 80 80 0 0 1 365 260 L 280 260 Z" fill="#1e293b" stroke="#22c55e" stroke-width="2"/>
+                <text x="320" y="178" text-anchor="middle" fill="#f8fafc" font-family="sans-serif" font-size="22" font-weight="600">AND</text>
+                <text x="320" y="200" text-anchor="middle" fill="#94a3b8" font-family="sans-serif" font-size="11">all bits = 1?</text>
+
+                <!-- Output arrow -->
+                <line x1="450" y1="180" x2="525" y2="180" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+                <!-- Result box -->
+                <rect x="525" y="135" width="105" height="90" fill="#1e293b" stroke="#22c55e" stroke-width="2" rx="6"/>
+                <text x="577" y="160" text-anchor="middle" fill="#f8fafc" font-family="sans-serif" font-size="13" font-weight="600">if YES:</text>
+                <text x="577" y="186" text-anchor="middle" fill="#e2e8f0" font-family="sans-serif" font-size="13">c&#7522;(a&#7522;) += 1</text>
+                <text x="577" y="208" text-anchor="middle" fill="#94a3b8" font-family="sans-serif" font-size="11">for every i</text>
+            </svg>
+            <figcaption>Figure 1. The SBC-PE endorsement protocol. Each agent privately observes its own utility, draws a single satisfaction bit, and broadcasts it. The shared joint counters advance only on rounds where every agent endorses , turning a one-bit consensus into a sampler biased toward the welfare-maximizing profile.</figcaption>
+        </figure>
+
+        <h2>The probabilistic softmax trick that makes the math work</h2>
+
+        <p>The real elegance lies in how the endorsement probabilities reshape the sampling distribution. Define</p>
+
+        <p>$$\theta(a) \;:=\; P(a^t = a, \, m^t = \mathbf{1}) \;=\; \frac{\varepsilon^{\,n - W(a)}}{|A|}$$</p>
+
+        <p>for feasible $a$. Under the mild assumption $\varepsilon &lt; 1$, the mode of $\theta$ is precisely the welfare maximizer $a^*$.</p>
+
+        <p>The authors then show a clean separation lemma (Lemma 1 in [1]): for a sufficiently small $\varepsilon$ controlled by the welfare gap $\Delta_1 = W(a^*) - \max_{a \neq a^*} W(a)$,</p>
+
+        <p>$$\theta(a^*) - \xi \;>\; \sum_{a \neq a^*} \big(\theta(a) + \xi\big),$$</p>
+
+        <p>with $\xi$ an explicit function of $\delta$, $M = |A_\lambda|$, and $\varepsilon$. This separation guarantees that the empirical marginal counters $\hat{\theta}_i(\tilde a_i)$ correctly identify each agent&rsquo;s component of the optimum (Proposition 1) once estimation error drops below $\xi$.</p>
+
+        <blockquote>
+            <p><strong>Reflection.</strong> This is the kind of &ldquo;one weird trick&rdquo; that makes theorists smile. By exponentiating the welfare in the endorsement probability, the algorithm effectively runs a softmax over joint actions , <em>without anyone ever computing it centrally</em>.</p>
+        </blockquote>
+
+        <h2>Logarithmic regret in finite time (goodbye, asymptotics)</h2>
+
+        <p>Prior payoff-based rules [2, 3] could only claim stochastic stability at Pareto-efficient points. SBC-PE gives <strong>explicit finite-time guarantees</strong>.</p>
+
+        <p>Using Hoeffding&rsquo;s inequality on the unbiased estimators $\hat{\theta}^K(a)$, the authors set</p>
+
+        <p>$$K \;=\; \frac{\log(4 M T \xi^2)}{2\xi^2}$$</p>
+
+        <p>so that with high probability every $|\hat{\theta}^K(a) - \theta(a)| \leq \xi$. The expected cumulative regret is then bounded by</p>
+
+        <p>$$\mathbb{E}[R_T] \;<\; \frac{\Delta}{2\xi^2}\Bigl(1 + \log(4 M T \xi^2)\Bigr)\Bigl(1 - \frac{1}{2 T \xi^2}\Bigr)$$</p>
+
+        <p>(Theorem 1 in [1]), which is $O(\log T)$.</p>
+
+        <blockquote>
+            <p><strong>Why this matters for MARL practitioners.</strong> You no longer have to wait &ldquo;long enough&rdquo; and hope. With a calculable (if parameter-dependent) exploration budget, you get the exact optimum with overwhelming probability and provably vanishing per-step regret.</p>
+        </blockquote>
+
+        <h2>Extreme generality: arbitrary finite games, no special structure required</h2>
+
+        <p>SBC-PE needs none of the usual suspects , no potential games, no identical interests, no Lipschitz continuity, no continuous action spaces. It works for any finite game with weighted welfare and local threshold constraints $u_i(a) > \lambda_i \;\forall i$.</p>
+
+        <p>The only non-trivial assumptions are:</p>
+
+        <ul>
+            <li>Unique welfare maximizer (Assumption 1-ii in [1]),</li>
+            <li>Bounded scaled utilities $w_i u_i(a) &lt; 1$,</li>
+            <li>$\varepsilon$ small enough relative to the welfare gap $\Delta_1$ and $|A_\lambda|$.</li>
+        </ul>
+
+        <p><strong>Counter-intuitive insight.</strong> The algorithm is <em>agnostic</em> to game structure yet still extracts the global optimum from purely local observations plus one collective bit. That universality is rare in coordination literature.</p>
+
+        <h2>From equations to code: SBC-PE in practice</h2>
+
+        <p>The exploration loop is short enough to fit on a single screen. Each agent maintains a per-action counter and a one-line endorsement rule; the joint counters advance only when every agent broadcasts a 1.</p>
+
+        <pre><code class="language-python">@dataclass
+class Agent:
+    n_actions: int
+    epsilon: float
+    weight: float
+    threshold: float
+    counter: np.ndarray = field(init=False)
+    rng: random.Random = field(default_factory=random.Random)
+
+    def __post_init__(self):
+        self.counter = np.zeros(self.n_actions, dtype=np.int64)
+
+    def play(self):
+        return self.rng.randrange(self.n_actions)
+
+    def endorse(self, utility_value):
+        # Single-bit endorsement m_i^t (Equation 3).
+        if utility_value &lt;= self.threshold:
+            return 0
+        accept_prob = self.epsilon ** (1.0 - self.weight * utility_value)
+        return 1 if self.rng.random() &lt; accept_prob else 0
+
+    def increment(self, action):
+        self.counter[action] += 1
+
+    def commit(self):
+        return int(np.argmax(self.counter))
+
+
+def run_step(agents):
+    actions = [a.play() for a in agents]
+    u = utility(actions)
+    bits = [agents[i].endorse(u[i]) for i in range(len(agents))]
+    if all(bits):                       # the AND gate of Figure 1
+        for i, a in enumerate(agents):
+            a.increment(actions[i])
+</code></pre>
+
+        <p>That is the entire learning rule. No gradients, no observations of other agents, no benchmark machinery. To reproduce the simulation, instantiate one <code>Agent</code> per player, define the joint utility function, and iterate. The full runner that produced Figure 2 below &mdash; a hand-tuned 3-agent, 2-action coordination game where $a^* = (1,1,1)$ pays 0.95 to every player and every other profile pays 0.05 &mdash; is in <a href="assets/sbc_pe.py">sbc_pe.py</a>.</p>
+
+        <figure>
+            <img src="assets/sbc-pe-welfare.svg" alt="Welfare versus exploration round for SBC-PE on a 3-agent binary-action coordination game, comparing epsilon = 0.1, 0.2, and 0.4.">
+            <figcaption>Figure 2. Top: smoothed welfare of the running argmax counter, averaged over 100 trials. Bottom: fraction of trials whose argmax currently identifies the welfare-maximizing profile $a^*$. The game has $u_i(a^*) = 0.95$ and $u_i(a) = 0.05$ for every other profile. Within $K = 8000$ rounds, every $\varepsilon$ setting locks onto $a^*$ in $\geq 96\%$ of trials; larger $\varepsilon$ wins at this horizon because the per-round endorsement rate $\varepsilon^{n - W}$ dominates the (smaller) separation gap that tinier $\varepsilon$ would produce at much larger $K$.</figcaption>
+        </figure>
+
+        <h2>The (necessary) price of admission: communication and tuning</h2>
+
+        <p>Here&rsquo;s where the paper gets refreshingly honest. SBC-PE still requires <strong>communication</strong> , one bit per agent per round during exploration, broadcast to everyone. Zero-communication payoff-based rules exist, but they lack the finite-time guarantees and exact convergence that SBC-PE delivers.</p>
+
+        <p>Other limitations that deserve attention:</p>
+
+        <ul>
+            <li>The exploration length $K$ scales with $\log(MT)/\xi^2$, and $\xi$ itself depends on the (unknown) welfare gap $\Delta_1$. In practice you must guess or over-estimate.</li>
+            <li>Unique maximizer is crucial; multiple optima break the separation argument (Remark 2 in [1]).</li>
+            <li>Post-commitment is irrevocable , no adaptation if the environment changes.</li>
+            <li>The paper&rsquo;s own simulations ($n=10$ agents, binary actions) show that too-large $\varepsilon$ collapses performance while too-small $\varepsilon$ wastes exploration steps.</li>
+        </ul>
+
+        <p>In short, single-bit feedback is astonishingly powerful, but it is not free. The algorithm trades communication for provable exactness.</p>
+
+        <h2>Why this changes the conversation in MARL</h2>
+
+        <p>SBC-PE sits in a sweet spot that previous work missed: <strong>minimal signaling + general applicability + explicit regret bounds</strong>. It proves that scalable welfare optimization is possible even when bandwidth is measured in bits, not packets.</p>
+
+        <h2>Final thought</h2>
+
+        <p>As we push MARL toward real-world deployment under ever-tighter resource constraints, the question is no longer &ldquo;Can we coordinate with almost no communication?&rdquo; but &ldquo;How do we make single-bit (or even sub-bit) protocols robust to non-stationarity, continuous actions, and partial observability?&rdquo; SBC-PE gives us the proof-of-concept. The next breakthroughs will almost certainly build on its elegant foundation.</p>
+
+        <div class="references">
+            <h2>References</h2>
+            <ol>
+                <li>Kiremitci, Y., Donmez, A., &amp; Sayin, M. O. (2025). <em>Achieving Pareto Optimality in Games via Single-bit Feedback.</em> arXiv:2509.25921v2.</li>
+                <li>Marden, J. R., Young, H. P., &amp; Pao, L. Y. (2014). <em>Achieving Pareto Optimality Through Distributed Learning.</em> SIAM Journal on Control and Optimization, 52(5), 2753&ndash;2770.</li>
+                <li>Pradelski, B. S. R., &amp; Young, H. P. (2012). <em>Learning efficient Nash equilibria in distributed systems.</em> Games and Economic Behavior, 75(2), 882&ndash;897.</li>
+            </ol>
+        </div>
+
+    </article>
+
+    <footer>
+        &copy; 2026 Daniel Gordon
+    </footer>
+
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js" integrity="sha384-7zkQWkzuo3B5mTepMUcHkMB5jZaolc2xDwL6VFqjFALcbeS9Ggm/Yr2r3Dy4lfFg" crossorigin="anonymous"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js" integrity="sha384-43gviWU0YVjaDtb/GhzOouOXtZMP/7XUzwPTstBeZFe/+rCMvRwr4yROQP43s0Xk" crossorigin="anonymous"
+        onload="renderMathInElement(document.body, {delimiters: [{left: '$$', right: '$$', display: true}, {left: '$', right: '$', display: false}], throwOnError: false});"></script>
+
+    <script defer src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js" integrity="sha512-D9gUyxqja7hBtkWpPWGt9wfbfaMGVt9gnyCvYa+jojwwPHLCzUm5i8rpk7vD7wNee9bA35eYIjobYPaQuKS1MQ==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script defer src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/python.min.js" integrity="sha512-wW8K3TEH5ZViD4aMPzwPdhXKs/Kb5MAm7qLRd3QliYlHy0u9utSKZsZzqlZAgJ9xxXp81acwnrZVZ8oTfoLG1g==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script>document.addEventListener('DOMContentLoaded', () => hljs.highlightAll());</script>
+
+</body>
+</html>

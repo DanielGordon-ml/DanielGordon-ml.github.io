@@ -251,11 +251,11 @@
 
         <h1>Pareto Optimality Without Communication: A Close Read of Marden, Young &amp; Pao (2014)</h1>
 
-        <p>In multi-agent reinforcement learning (MARL), the holy grail is often <em>coordination without coordination</em> &mdash; agents that achieve system-wide efficiency despite having no model of the environment, no knowledge of others' actions or utilities, and zero communication. Most payoff-based or regret-minimizing algorithms settle for Nash equilibria, which can be arbitrarily inefficient.</p>
+        <p>In multi-agent reinforcement learning (MARL), the holy grail is often <em>coordination without coordination</em> ,  agents that achieve system-wide efficiency despite having no model of the environment, no knowledge of others' actions or utilities, and zero communication. Most payoff-based or regret-minimizing algorithms settle for Nash equilibria, which can be arbitrarily inefficient.</p>
 
-        <p>A landmark 2014 paper by Jason R. Marden, H. Peyton Young, and Lucy Y. Pao (<a href="https://doi.org/10.1137/110850694" target="_blank" rel="noopener noreferrer">&ldquo;Achieving Pareto Optimality Through Distributed Learning&rdquo;</a>) shows this is <em>not</em> inevitable. They introduce a completely uncoupled, payoff-based learning rule that, in any finite $n$-person game with generic payoffs (and a mild interdependence condition), makes the <strong>welfare-maximizing</strong> action profile stochastically stable. Agents only ever observe their own past actions and realized payoffs &mdash; yet the system reliably locks onto the Pareto optimal outcome.</p>
+        <p>A landmark 2014 paper by Jason R. Marden, H. Peyton Young, and Lucy Y. Pao (<a href="https://doi.org/10.1137/110850694" target="_blank" rel="noopener noreferrer">&ldquo;Achieving Pareto Optimality Through Distributed Learning&rdquo;</a>) shows this is <em>not</em> inevitable. They introduce a completely uncoupled, payoff-based learning rule that, in any finite $n$-person game with generic payoffs (and a mild interdependence condition), makes the <strong>welfare-maximizing</strong> action profile stochastically stable. Agents only ever observe their own past actions and realized payoffs ,  yet the system reliably locks onto the Pareto optimal outcome.</p>
 
-        <p>Here are the six most surprising, counter-intuitive, and impactful takeaways &mdash; with the math, the intuition, and the MARL implications.</p>
+        <p>Here are the six most surprising, counter-intuitive, and impactful takeaways ,  with the math, the intuition, and the MARL implications.</p>
 
         <h2>1. Completely payoff-based (uncoupled) learning can reach global efficiency in <em>arbitrary</em> games</h2>
 
@@ -266,10 +266,10 @@
         <p>No other agents' actions or utilities are ever observed. Yet the joint process converges (in the sense of stochastic stability) to the action profile $a^\ast$ that maximizes $W(a) = \sum_i U_i(a)$.</p>
 
         <blockquote>
-            <p><strong>Why this matters for MARL.</strong> This is model-free, communication-free MARL that solves general-sum coordination problems where potential-game or consensus-based methods fail &mdash; e.g. wind-farm control with unknown aerodynamic wake interactions.</p>
+            <p><strong>Why this matters for MARL.</strong> This is model-free, communication-free MARL that solves general-sum coordination problems where potential-game or consensus-based methods fail ,  e.g. wind-farm control with unknown aerodynamic wake interactions.</p>
         </blockquote>
 
-        <h2>2. The mood dynamics are minimalist &mdash; yet mathematically perfect for exploration/exploitation</h2>
+        <h2>2. The mood dynamics are minimalist ,  yet mathematically perfect for exploration/exploitation</h2>
 
         <p>Fix small $\varepsilon > 0$ (exploration rate) and $c \ge n$. Agent dynamics:</p>
 
@@ -286,7 +286,7 @@
             <li>Otherwise &rarr; set new benchmark to $(a_i, u_i)$ and become content with probability $\varepsilon^{\,1 - u_i}$, discontent with probability $1 - \varepsilon^{\,1 - u_i}$.</li>
         </ul>
 
-        <p>The exponent $1 - u_i$ makes high-payoff outcomes &ldquo;stickier&rdquo; &mdash; lower resistance to acceptance. A single scalar $\varepsilon$ controls the entire exploration/exploitation tradeoff across the population.</p>
+        <p>The exponent $1 - u_i$ makes high-payoff outcomes &ldquo;stickier&rdquo; ,  lower resistance to acceptance. A single scalar $\varepsilon$ controls the entire exploration/exploitation tradeoff across the population.</p>
 
         <blockquote>
             <p><strong>Reflection.</strong> Two moods and one benchmark pair replace the four-mood machinery (content / discontent / hopeful / watchful) of earlier regret-testing algorithms. Simpler, yet stronger guarantees.</p>
@@ -364,7 +364,7 @@
             <figcaption>Figure 1. Recurrence classes of the unperturbed chain $P^{0}$ and the resistances between them. Welfare-maximizing content states minimize the stochastic potential $\gamma(z) = c(|C^{0}|-1) + n - W(\bar a)$.</figcaption>
         </figure>
 
-        <p>The math is clean, elegant, and directly imported from large-deviations theory &mdash; a bridge between evolutionary game theory and distributed control.</p>
+        <p>The math is clean, elegant, and directly imported from large-deviations theory ,  a bridge between evolutionary game theory and distributed control.</p>
 
         <h2>4. It achieves Pareto optimality <em>even when that outcome is not a Nash equilibrium</em></h2>
 
@@ -380,13 +380,13 @@
             </tbody>
         </table>
 
-        <p>$(B,B)$ is the unique pure Nash equilibrium, yet $(A,A)$ is the unique stochastically stable state under this dynamics. The resistance-tree calculation shows $\gamma(AA)$ is strictly smaller than $\gamma(BB)$ by $4/3$. Simulations (&sect;6) confirm that even at moderate $\varepsilon$ the majority of trials settle at $(A,A)$ within a few hundred iterations &mdash; well before the asymptotic regime where the stochastic-stability argument formally applies.</p>
+        <p>$(B,B)$ is the unique pure Nash equilibrium, yet $(A,A)$ is the unique stochastically stable state under this dynamics. The resistance-tree calculation shows $\gamma(AA)$ is strictly smaller than $\gamma(BB)$ by $4/3$. Simulations (&sect;6) confirm that even at moderate $\varepsilon$ the majority of trials settle at $(A,A)$ within a few hundred iterations ,  well before the asymptotic regime where the stochastic-stability argument formally applies.</p>
 
         <blockquote>
             <p><strong>Counter-intuitive punchline.</strong> The algorithm <em>prefers</em> cooperation over defection because high-welfare outcomes are easier for agents to &ldquo;accept&rdquo; into their benchmark (lower resistance $1 - u_i$).</p>
         </blockquote>
 
-        <h2>5. Interdependence is necessary &mdash; and there is a fundamental impossibility result</h2>
+        <h2>5. Interdependence is necessary ,  and there is a fundamental impossibility result</h2>
 
         <p><strong>Definition (Interdependence).</strong> No proper subset of agents can be isolated; every coalition interacts with its complement.</p>
 
@@ -398,13 +398,13 @@
 
         <h2>6. Practical performance beats the $\varepsilon \to 0$ theoretical limit</h2>
 
-        <p>Simulations on the scaled PD make the finite-horizon picture concrete (Figure 2). Within $100$ iterations a majority of trials have already committed to $(A,A)$: about $85\%$ for $\varepsilon = 0.05$ and $60\%$ for $\varepsilon = 0.01$. Mean welfare trails the fraction-at-Pareto because trials that land in a suboptimal basin stay there for many steps before a random mood flip frees them. At this horizon, larger $\varepsilon$ is actually faster &mdash; the acceptance probability $\varepsilon^{1 - u}$ at the Pareto payoff is $\approx 0.47$ for $\varepsilon = 0.05$ but only $\approx 0.32$ for $\varepsilon = 0.01$, so a bigger $\varepsilon$ commits to $(A,A)$ on fewer attempts. Smaller $\varepsilon$ wins asymptotically (its experimentation rate $\varepsilon^{c}$ is lower, so once content it stays put), but reaching that regime requires many more iterations than shown here.</p>
+        <p>Simulations on the scaled PD make the finite-horizon picture concrete (Figure 2). Within $100$ iterations a majority of trials have already committed to $(A,A)$: about $85\%$ for $\varepsilon = 0.05$ and $60\%$ for $\varepsilon = 0.01$. Mean welfare trails the fraction-at-Pareto because trials that land in a suboptimal basin stay there for many steps before a random mood flip frees them. At this horizon, larger $\varepsilon$ is actually faster ,  the acceptance probability $\varepsilon^{1 - u}$ at the Pareto payoff is $\approx 0.47$ for $\varepsilon = 0.05$ but only $\approx 0.32$ for $\varepsilon = 0.01$, so a bigger $\varepsilon$ commits to $(A,A)$ on fewer attempts. Smaller $\varepsilon$ wins asymptotically (its experimentation rate $\varepsilon^{c}$ is lower, so once content it stays put), but reaching that regime requires many more iterations than shown here.</p>
 
         <p><strong>Cons and open questions:</strong></p>
         <ul>
             <li>Hitting times grow rapidly as $\varepsilon$ shrinks.</li>
-            <li>The dynamics exhibit <em>commitment</em>: the system &ldquo;locks&rdquo; onto one profile and only rarely escapes &mdash; useful for stability, costly for adaptability in non-stationary environments.</li>
-            <li>Compared with Pradelski &amp; Young [2] (which adds transitional moods to target Pareto-Nash equilibria), this rule sacrifices Nash guarantees for pure welfare maximization &mdash; a deliberate design choice with real engineering payoff.</li>
+            <li>The dynamics exhibit <em>commitment</em>: the system &ldquo;locks&rdquo; onto one profile and only rarely escapes ,  useful for stability, costly for adaptability in non-stationary environments.</li>
+            <li>Compared with Pradelski &amp; Young [2] (which adds transitional moods to target Pareto-Nash equilibria), this rule sacrifices Nash guarantees for pure welfare maximization ,  a deliberate design choice with real engineering payoff.</li>
         </ul>
 
         <h3>From math to code: reproducing the scaled PD</h3>
@@ -455,7 +455,7 @@ class Agent:
 
         <h2>Final thought</h2>
 
-        <p>Marden, Young &amp; Pao's algorithm is one of those rare results that feels almost too good to be true: a handful of local rules, zero communication, and global optimality emerges from stochastic stability. For MARL researchers building systems that must operate under extreme information constraints &mdash; wind farms, ad-hoc networks, large-scale robotics &mdash; it remains a foundational blueprint.</p>
+        <p>Marden, Young &amp; Pao's algorithm is one of those rare results that feels almost too good to be true: a handful of local rules, zero communication, and global optimality emerges from stochastic stability. For MARL researchers building systems that must operate under extreme information constraints ,  wind farms, ad-hoc networks, large-scale robotics ,  it remains a foundational blueprint.</p>
 
         <p>The lingering question: can we marry this mood-based stochastic stability with modern deep-RL function approximation and partial observability while preserving the same asymptotic welfare guarantees? The theory is there. The next breakthrough is waiting in the code.</p>
 

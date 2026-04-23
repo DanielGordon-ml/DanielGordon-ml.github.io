@@ -1,0 +1,764 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Context Is the Bottleneck: Why Multi-Agent LLM Systems Fail | Daniel Gordon</title>
+    <meta name="description" content="A close read of Cemri et al. (2025): MAST quantifies why multi-agent LLM systems fail, and why the only reason to split a task across agents is the finite context window.">
+    <meta property="og:title" content="Context Is the Bottleneck: Why Multi-Agent LLM Systems Fail, and What MAST Teaches Us">
+    <meta property="og:description" content="A close read of Cemri et al. (2025): MAST quantifies why multi-agent LLM systems fail, and why the only reason to split a task across agents is the finite context window.">
+    <meta property="og:type" content="article">
+
+    <style>
+        :root {
+            --primary: #0f172a;
+            --secondary: #3b82f6;
+            --surface: #1e293b;
+            --border: #334155;
+            --text-primary: #f8fafc;
+            --text-secondary: #e2e8f0;
+            --text-muted: #94a3b8;
+            --text-dim: #64748b;
+            --accent-green: #22c55e;
+            --accent-red: #ef4444;
+            --accent-amber: #f59e0b;
+        }
+
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        html { scroll-behavior: smooth; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            line-height: 1.7;
+            color: var(--text-secondary);
+            background-color: var(--primary);
+        }
+
+        nav {
+            position: fixed;
+            top: 0; left: 0; right: 0; z-index: 100;
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 0.75rem 2rem;
+            background-color: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .nav-logo {
+            font-size: 1.25rem; font-weight: 700;
+            color: var(--text-primary); text-decoration: none; letter-spacing: 1px;
+        }
+
+        .back-link {
+            color: var(--text-muted); text-decoration: none;
+            font-size: 0.85rem; letter-spacing: 1px; text-transform: uppercase;
+            transition: color 0.2s ease;
+        }
+        .back-link:hover, .back-link:focus-visible { color: var(--secondary); }
+
+        article {
+            max-width: 780px;
+            margin: 0 auto;
+            padding: 7rem 2rem 4rem;
+        }
+
+        .post-meta {
+            display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: center;
+            margin-bottom: 1rem;
+            color: var(--text-dim);
+            font-size: 0.85rem;
+        }
+        .post-meta .dot { color: var(--text-dim); }
+        .post-meta .tag {
+            background-color: var(--surface);
+            color: var(--secondary);
+            padding: 0.2rem 0.7rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            border: 1px solid var(--border);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        article h1 {
+            font-size: 2.2rem; font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 2rem;
+            line-height: 1.25;
+            letter-spacing: -0.01em;
+        }
+
+        article h2 {
+            font-size: 1.45rem; font-weight: 600;
+            color: var(--text-primary);
+            margin-top: 3rem; margin-bottom: 1rem;
+            line-height: 1.3;
+        }
+
+        article h3 {
+            font-size: 1.1rem; font-weight: 600;
+            color: var(--text-primary);
+            margin-top: 2rem; margin-bottom: 0.75rem;
+        }
+
+        article p {
+            margin-bottom: 1.25rem;
+            font-size: 1.02rem;
+        }
+
+        article a {
+            color: var(--secondary);
+            text-decoration: underline;
+            text-underline-offset: 2px;
+            text-decoration-thickness: 1px;
+        }
+        article a:hover, article a:focus-visible { color: #60a5fa; }
+
+        article ul, article ol {
+            margin: 0 0 1.25rem 1.5rem;
+            color: var(--text-secondary);
+        }
+        article li { margin-bottom: 0.4rem; }
+
+        article strong { color: var(--text-primary); }
+        article em { color: var(--text-secondary); }
+
+        article blockquote {
+            border-left: 3px solid var(--secondary);
+            padding: 0.75rem 1.25rem;
+            margin: 1.5rem 0;
+            background-color: var(--surface);
+            color: var(--text-secondary);
+            border-radius: 0 6px 6px 0;
+        }
+        article blockquote p:last-child { margin-bottom: 0; }
+
+        figure {
+            margin: 2.5rem 0;
+            text-align: center;
+        }
+        figure svg {
+            max-width: 100%;
+            height: auto;
+            border-radius: 8px;
+            background-color: var(--surface);
+            border: 1px solid var(--border);
+        }
+        figcaption {
+            margin-top: 0.75rem;
+            color: var(--text-muted);
+            font-size: 0.85rem;
+            font-style: italic;
+        }
+
+        .references {
+            margin-top: 3rem;
+            padding-top: 2rem;
+            border-top: 1px solid var(--border);
+            font-size: 0.92rem;
+        }
+        .references h2 { margin-top: 0; }
+        .references ol {
+            list-style: decimal;
+            color: var(--text-muted);
+        }
+        .references li { margin-bottom: 0.6rem; }
+
+        footer {
+            text-align: center;
+            padding: 2rem;
+            color: var(--text-dim);
+            font-size: 0.85rem;
+            border-top: 1px solid var(--border);
+        }
+
+        *:focus-visible {
+            outline: 2px solid var(--secondary);
+            outline-offset: 2px;
+        }
+
+        /* ── Telephone-game demo ── */
+        .demo {
+            margin: 2.5rem 0 3rem;
+            padding: 1.5rem;
+            background-color: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+        }
+        .demo h3 {
+            margin-top: 0 !important;
+            color: var(--text-primary);
+            font-size: 1.05rem;
+        }
+        .demo .spec {
+            margin: 1rem 0 1.5rem;
+            padding: 0.75rem 1rem;
+            background-color: var(--primary);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            font-size: 0.9rem;
+        }
+        .demo .spec ol {
+            margin: 0 0 0 1.25rem;
+            color: var(--text-secondary);
+        }
+        .demo .spec li { margin-bottom: 0.2rem; }
+
+        .demo .controls {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1.25rem;
+        }
+        .demo .control label {
+            display: flex; justify-content: space-between; align-items: baseline;
+            font-size: 0.82rem;
+            color: var(--text-muted);
+            margin-bottom: 0.35rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .demo .control label .val {
+            color: var(--text-primary);
+            font-weight: 600;
+            font-variant-numeric: tabular-nums;
+            text-transform: none;
+            letter-spacing: 0;
+        }
+        .demo .control input[type="range"] {
+            width: 100%;
+            accent-color: var(--secondary);
+        }
+
+        .demo .buttons {
+            display: flex; flex-wrap: wrap; gap: 0.6rem;
+            margin-bottom: 1.25rem;
+        }
+        .demo button {
+            font-family: inherit;
+            font-size: 0.88rem;
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            border: 1px solid var(--border);
+            background-color: var(--primary);
+            color: var(--text-primary);
+            cursor: pointer;
+            transition: background-color 0.15s ease, border-color 0.15s ease;
+        }
+        .demo button.primary {
+            background-color: var(--secondary);
+            border-color: var(--secondary);
+            color: #fff;
+        }
+        .demo button.primary:hover, .demo button.primary:focus-visible {
+            background-color: #2563eb; border-color: #2563eb;
+        }
+        .demo button:not(.primary):hover, .demo button:not(.primary):focus-visible {
+            border-color: var(--secondary);
+        }
+
+        .demo .chain {
+            display: flex;
+            gap: 0.6rem;
+            overflow-x: auto;
+            padding-bottom: 0.4rem;
+            margin-bottom: 1rem;
+        }
+        .demo .agent-card {
+            flex: 0 0 auto;
+            min-width: 150px;
+            background-color: var(--primary);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 0.7rem 0.85rem;
+            opacity: 0;
+            transform: translateY(4px);
+            transition: opacity 0.25s ease, transform 0.25s ease, border-color 0.25s ease;
+        }
+        .demo .agent-card.visible { opacity: 1; transform: translateY(0); }
+        .demo .agent-card.single { border-color: var(--accent-green); }
+        .demo .agent-title {
+            font-size: 0.78rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 0.5rem;
+        }
+        .demo .agent-card ul {
+            list-style: none;
+            margin: 0;
+            padding: 0;
+            font-size: 0.82rem;
+        }
+        .demo .agent-card li {
+            margin: 0 0 0.25rem 0;
+            padding: 0;
+            display: flex;
+            gap: 0.35rem;
+            align-items: baseline;
+        }
+        .demo .agent-card .num {
+            color: var(--text-dim);
+            font-variant-numeric: tabular-nums;
+            width: 1.25rem;
+            flex: 0 0 auto;
+        }
+        .demo .status-preserved { color: var(--accent-green); }
+        .demo .status-corrupted {
+            color: var(--accent-amber);
+            text-decoration: underline wavy;
+            text-decoration-skip-ink: none;
+            text-underline-offset: 3px;
+        }
+        .demo .status-dropped {
+            color: var(--text-dim);
+            text-decoration: line-through;
+        }
+
+        .demo .score {
+            margin-top: 0.5rem;
+            padding: 0.9rem 1.1rem;
+            background-color: var(--primary);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+        }
+        .demo .score .headline {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 0.25rem;
+        }
+        .demo .score .headline .num { font-variant-numeric: tabular-nums; }
+        .demo .score .pin {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            font-style: italic;
+        }
+        .demo .score.s-high .num { color: var(--accent-green); }
+        .demo .score.s-mid .num { color: var(--accent-amber); }
+        .demo .score.s-low .num { color: var(--accent-red); }
+
+        @media (prefers-reduced-motion: reduce) {
+            .demo .agent-card {
+                opacity: 1 !important;
+                transform: none !important;
+                transition: none !important;
+            }
+        }
+
+        @media (max-width: 768px) {
+            nav { padding: 0.5rem 1rem; }
+            article { padding: 6rem 1.25rem 3rem; }
+            article h1 { font-size: 1.7rem; }
+            article h2 { font-size: 1.25rem; }
+            .demo { padding: 1.25rem; }
+        }
+    </style>
+</head>
+<body>
+
+    <nav aria-label="Primary">
+        <a href="../" class="nav-logo">DG</a>
+        <a href="../#blog" class="back-link">&larr; Back to Blog</a>
+    </nav>
+
+    <article>
+        <div class="post-meta">
+            <span>April 23, 2026</span>
+            <span class="dot">&middot;</span>
+            <span>~13 min read</span>
+            <span class="tag">LLM Agents</span>
+            <span class="tag">Multi-Agent Systems</span>
+            <span class="tag">Paper Review</span>
+        </div>
+
+        <h1>Context Is the Bottleneck: Why Multi-Agent LLM Systems Fail, and What MAST Teaches Us</h1>
+
+        <p>You&rsquo;ve seen the demos. You&rsquo;ve read the hype. Multi-agent LLM systems (MAS) promise collaborative intelligence that crushes single-agent baselines on coding, math, and open-ended tasks. Yet when researchers at UC Berkeley actually dissected 1,642 real execution traces from seven popular frameworks, the results were sobering: failure rates between <strong>41% and 86.7%</strong>.</p>
+
+        <p>If you take only one claim from this post, take this one: <strong>a single LLM that can hold the entire task in its context will almost always beat a team of LLMs that has to coordinate.</strong> The only reason we build multi-agent systems is that context windows are finite and tasks aren&rsquo;t. Every MAST failure mode is the tax you pay for being forced to split the job. That reframes the research agenda: the next breakthrough is not a bigger model , it is a better <em>orchestrator</em>, one that decides when to split, how to assign, and what to carry forward.</p>
+
+        <p>The new paper &ldquo;Why Do Multi-Agent LLM Systems Fail?&rdquo; [1] doesn&rsquo;t just document the body count , it hands us MAST, the first empirically grounded taxonomy of MAS failure modes, built from 150+ hand-analyzed traces and validated with &kappa; = 0.88 inter-annotator agreement. For anyone working at the intersection of LLM agents and multi-agent reinforcement learning (MARL), this is required reading. Because the failure patterns aren&rsquo;t random. They&rsquo;re structural. And they echo problems we thought we solved decades ago in classical distributed systems.</p>
+
+        <p>Here are the five most surprising, counter-intuitive takeaways , re-ordered around the thesis above, with an interactive toy in the middle so you can <em>feel</em> the coordination tax, not just read about it.</p>
+
+        <h2>1. MAS failures are not &ldquo;LLM hallucinations&rdquo; , they are overwhelmingly system-design failures</h2>
+
+        <p>MAST clusters 14 distinct failure modes into three categories. System Design Issues alone account for <strong>44.2%</strong> of failures: agents disobeying task or role specifications, pointless step repetition, unaware termination conditions, and , crucially , loss of conversation history.</p>
+
+        <p>The paper&rsquo;s blunt insight:</p>
+
+        <blockquote>
+            <p>&ldquo;MAS failure is not merely a function of challenges in the underlying model; a well-designed MAS can result in performance gain when using the same underlying model.&rdquo;</p>
+        </blockquote>
+
+        <p>They proved it. Simple prompt and workflow tweaks on ChatDev (same GPT-4o) delivered <strong>+9.4%</strong> success on one intervention and <strong>+15.6%</strong> on another. The model wasn&rsquo;t the bottleneck. The <em>organization</em> was.</p>
+
+        <p>For MARL researchers this is familiar territory: a poorly specified centralized critic or reward structure dooms the whole team, no matter how capable the individual policies. The coordination layer , not the agent , is where the failure mass lives.</p>
+
+        <h2>2. Context is the physics , and context is why we split in the first place</h2>
+
+        <p>This is the lesson I want every MAS builder to internalize, because every other lesson follows from it.</p>
+
+        <p>In pre-GPU centralized systems, one machine&rsquo;s compute power was the hard limit. The solution? Distribute the workload across many machines. Suddenly you had collective power , but new problems: network latency, consistency, synchronization. Nobody was ever <em>happy</em> about distribution. We did it because the job no longer fit on one machine.</p>
+
+        <p><strong>LLM context windows are today&rsquo;s single-machine CPU.</strong> If a task fits inside one context, a single LLM with a good prompt and good tools will almost always win , one head, one coherent plan, no information re-serialization, no inter-agent misunderstanding. We split cognition into multi-agent systems for exactly one reason: the task stopped fitting. And the moment we split, we inherit the exact same distributed-systems tax that haunted us in the 1990s: communication bandwidth (token limits), synchronization failures (termination, turn-taking), and the history-loss and misalignment modes MAST quantifies in painful detail.</p>
+
+        <p>MAST&rsquo;s own data shows that raw context-loss in isolation (FM-1.4) is only <strong>2.8%</strong> of failures , yet it cascades into the much larger Inter-Agent Misalignment bucket. Distribution buys you scale; it does not buy you coordination for free. Every line item on the failure bill , every dropped spec, every pointless retry, every verifier that missed the obvious , exists because context ran out somewhere, and we built a coordination layer to paper over it.</p>
+
+        <figure>
+            <svg viewBox="0 0 720 420" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="fig1-title fig1-desc">
+                <title id="fig1-title">The same trade-off in two eras: distributed compute and distributed cognition</title>
+                <desc id="fig1-desc">Left panel shows a single CPU at capacity, with a job overflowing its limit, and arrows fanning out to three worker CPUs labeled with the distribution tax: network latency, consistency, sync. Right panel shows a single LLM context at capacity, with a task overflowing the token window, and arrows fanning out to three agent LLMs labeled with the distribution tax: token budget, context truncation, inter-agent misalignment.</desc>
+
+                <defs>
+                    <marker id="arrH" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+                        <path d="M0,0 L10,5 L0,10 z" fill="#94a3b8"/>
+                    </marker>
+                </defs>
+
+                <!-- Panel titles -->
+                <text x="180" y="30" text-anchor="middle" fill="#94a3b8" font-family="sans-serif" font-size="13" letter-spacing="1">1990s &#8226; DISTRIBUTED COMPUTE</text>
+                <text x="540" y="30" text-anchor="middle" fill="#94a3b8" font-family="sans-serif" font-size="13" letter-spacing="1">2020s &#8226; DISTRIBUTED COGNITION</text>
+
+                <!-- Divider -->
+                <line x1="360" y1="55" x2="360" y2="395" stroke="#334155" stroke-width="1" stroke-dasharray="4,4"/>
+
+                <!-- LEFT PANEL -->
+                <!-- Single CPU box -->
+                <rect x="120" y="60" width="120" height="58" rx="6" fill="#1e293b" stroke="#3b82f6" stroke-width="1.5"/>
+                <text x="180" y="82" text-anchor="middle" fill="#f8fafc" font-family="sans-serif" font-size="13" font-weight="600">Single CPU</text>
+                <!-- Capacity bar -->
+                <rect x="132" y="94" width="96" height="10" rx="3" fill="#0f172a" stroke="#334155" stroke-width="1"/>
+                <rect x="133" y="95" width="94" height="8" rx="2" fill="#3b82f6"/>
+                <text x="180" y="114" text-anchor="middle" fill="#94a3b8" font-family="sans-serif" font-size="10">capacity: full</text>
+
+                <!-- Oversized job spilling over -->
+                <g transform="translate(56, 140)">
+                    <rect x="0" y="0" width="248" height="38" rx="6" fill="#0f172a" stroke="#ef4444" stroke-width="1.5" stroke-dasharray="5,3"/>
+                    <text x="124" y="23" text-anchor="middle" fill="#fca5a5" font-family="sans-serif" font-size="12" font-weight="600">job doesn&#39;t fit on one node</text>
+                </g>
+
+                <!-- Fan-out arrows -->
+                <line x1="110" y1="200" x2="70" y2="252" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arrH)"/>
+                <line x1="180" y1="205" x2="180" y2="252" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arrH)"/>
+                <line x1="250" y1="200" x2="290" y2="252" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arrH)"/>
+
+                <!-- Three worker CPUs -->
+                <rect x="30" y="258" width="80" height="40" rx="5" fill="#1e293b" stroke="#334155" stroke-width="1"/>
+                <text x="70" y="282" text-anchor="middle" fill="#e2e8f0" font-family="sans-serif" font-size="11">worker 1</text>
+
+                <rect x="140" y="258" width="80" height="40" rx="5" fill="#1e293b" stroke="#334155" stroke-width="1"/>
+                <text x="180" y="282" text-anchor="middle" fill="#e2e8f0" font-family="sans-serif" font-size="11">worker 2</text>
+
+                <rect x="250" y="258" width="80" height="40" rx="5" fill="#1e293b" stroke="#334155" stroke-width="1"/>
+                <text x="290" y="282" text-anchor="middle" fill="#e2e8f0" font-family="sans-serif" font-size="11">worker 3</text>
+
+                <!-- Tax label (left) -->
+                <rect x="40" y="320" width="280" height="62" rx="6" fill="#1e293b" stroke="#334155" stroke-width="1"/>
+                <text x="180" y="339" text-anchor="middle" fill="#f59e0b" font-family="sans-serif" font-size="11" font-weight="600" letter-spacing="1">+ THE DISTRIBUTION TAX</text>
+                <text x="180" y="357" text-anchor="middle" fill="#e2e8f0" font-family="sans-serif" font-size="11">network latency</text>
+                <text x="180" y="372" text-anchor="middle" fill="#e2e8f0" font-family="sans-serif" font-size="11">consistency &#8226; synchronization</text>
+
+                <!-- RIGHT PANEL -->
+                <!-- Single LLM context box -->
+                <rect x="480" y="60" width="120" height="58" rx="6" fill="#1e293b" stroke="#3b82f6" stroke-width="1.5"/>
+                <text x="540" y="82" text-anchor="middle" fill="#f8fafc" font-family="sans-serif" font-size="13" font-weight="600">LLM context</text>
+                <!-- Token-ceiling bar -->
+                <rect x="492" y="94" width="96" height="10" rx="3" fill="#0f172a" stroke="#334155" stroke-width="1"/>
+                <rect x="493" y="95" width="94" height="8" rx="2" fill="#3b82f6"/>
+                <text x="540" y="114" text-anchor="middle" fill="#94a3b8" font-family="sans-serif" font-size="10">tokens: full</text>
+
+                <!-- Oversized task spilling over -->
+                <g transform="translate(416, 140)">
+                    <rect x="0" y="0" width="248" height="38" rx="6" fill="#0f172a" stroke="#ef4444" stroke-width="1.5" stroke-dasharray="5,3"/>
+                    <text x="124" y="23" text-anchor="middle" fill="#fca5a5" font-family="sans-serif" font-size="12" font-weight="600">task doesn&#39;t fit in one window</text>
+                </g>
+
+                <!-- Fan-out arrows -->
+                <line x1="470" y1="200" x2="430" y2="252" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arrH)"/>
+                <line x1="540" y1="205" x2="540" y2="252" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arrH)"/>
+                <line x1="610" y1="200" x2="650" y2="252" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arrH)"/>
+
+                <!-- Three agent LLMs -->
+                <rect x="390" y="258" width="80" height="40" rx="5" fill="#1e293b" stroke="#334155" stroke-width="1"/>
+                <text x="430" y="282" text-anchor="middle" fill="#e2e8f0" font-family="sans-serif" font-size="11">agent 1</text>
+
+                <rect x="500" y="258" width="80" height="40" rx="5" fill="#1e293b" stroke="#334155" stroke-width="1"/>
+                <text x="540" y="282" text-anchor="middle" fill="#e2e8f0" font-family="sans-serif" font-size="11">agent 2</text>
+
+                <rect x="610" y="258" width="80" height="40" rx="5" fill="#1e293b" stroke="#334155" stroke-width="1"/>
+                <text x="650" y="282" text-anchor="middle" fill="#e2e8f0" font-family="sans-serif" font-size="11">agent 3</text>
+
+                <!-- Tax label (right) -->
+                <rect x="400" y="320" width="280" height="62" rx="6" fill="#1e293b" stroke="#334155" stroke-width="1"/>
+                <text x="540" y="339" text-anchor="middle" fill="#f59e0b" font-family="sans-serif" font-size="11" font-weight="600" letter-spacing="1">+ THE DISTRIBUTION TAX</text>
+                <text x="540" y="357" text-anchor="middle" fill="#e2e8f0" font-family="sans-serif" font-size="11">token budget &#8226; context truncation</text>
+                <text x="540" y="372" text-anchor="middle" fill="#e2e8f0" font-family="sans-serif" font-size="11">inter-agent misalignment</text>
+            </svg>
+            <figcaption>Figure 1. The same trade-off, different substrate. You only distribute when the single node can&rsquo;t hold the whole job , and every MAST failure mode is a line item on that bill.</figcaption>
+        </figure>
+
+        <h3>Feel it yourself: the telephone-game demo</h3>
+
+        <p>Below is a deterministic toy model of a task passed down a chain of agents. The task has six hard requirements. Each agent summarizes for the next; when the summary can&rsquo;t fit the budget, the oldest requirements silently drop. Optional coordination noise flips surviving requirements into a corrupted state. Set the chain length to <strong>1</strong> and nothing ever drops , a single LLM always scores 6/6. Slide it up, shrink the budget, add noise, and watch the fidelity of the spec collapse one hop at a time.</p>
+
+        <section class="demo" id="demo" aria-label="Telephone-game simulator">
+            <h3>Telephone-game simulator</h3>
+
+            <div class="spec" aria-label="Fixed task spec">
+                <strong style="color:var(--text-primary);">Task spec (6 requirements):</strong>
+                <ol>
+                    <li>Validate input schema before any network call.</li>
+                    <li>Retry with exponential backoff on 5xx only.</li>
+                    <li>Log all errors to stderr with the request ID.</li>
+                    <li>Return JSON with fields <code style="background-color:var(--surface);padding:0 0.3rem;border-radius:3px;">a</code>, <code style="background-color:var(--surface);padding:0 0.3rem;border-radius:3px;">b</code>, <code style="background-color:var(--surface);padding:0 0.3rem;border-radius:3px;">c</code>.</li>
+                    <li>Cache successful results for 60 seconds.</li>
+                    <li>Abort cleanly on SIGTERM and flush pending writes.</li>
+                </ol>
+            </div>
+
+            <div class="controls">
+                <div class="control">
+                    <label for="chain-len">Chain length <span class="val" id="chain-len-val">3</span></label>
+                    <input type="range" id="chain-len" min="1" max="5" step="1" value="3">
+                </div>
+                <div class="control">
+                    <label for="budget">Per-agent context budget <span class="val" id="budget-val">4</span> / 6</label>
+                    <input type="range" id="budget" min="1" max="6" step="1" value="4">
+                </div>
+                <div class="control">
+                    <label for="noise">Coordination noise <span class="val" id="noise-val">0%</span></label>
+                    <input type="range" id="noise" min="0" max="30" step="1" value="0">
+                </div>
+            </div>
+
+            <div class="buttons">
+                <button class="primary" id="btn-run" type="button">Run trace</button>
+                <button id="btn-reset" type="button">Reset</button>
+                <button id="btn-seed" type="button" aria-label="New random seed">&#x21bb; new seed</button>
+            </div>
+
+            <div class="chain" id="chain" role="list" aria-live="polite" aria-atomic="true"></div>
+
+            <div class="score" id="score" role="status">
+                <div class="headline">Press <em>Run trace</em> to simulate.</div>
+                <div class="pin">Chain length 1 (single LLM) always scores 6/6.</div>
+            </div>
+        </section>
+
+        <p>Play with it for thirty seconds and the thesis stops being an argument and starts being a feeling: the only thing that reliably protects the full spec is keeping it in one head. The moment you split, every choice about how to summarize and what to forward is an opportunity to lose information , and in real systems you make that choice at every hop, under real token pressure, with real misrephrasing error.</p>
+
+        <h2>3. Inter-agent misalignment is the tax you pay for splitting</h2>
+
+        <p><strong>32.2%</strong> of failures fall under Inter-Agent Misalignment: conversation resets, information withholding, ignoring other agents&rsquo; input, reasoning-action mismatch, task derailment. This is what the demo above is a toy model of. Figure 3 in the paper shows a textbook case , two agents talking past each other because one withholds a critical API format. The supervisor never asks for clarification. Classic theory-of-mind collapse.</p>
+
+        <p>Traces average more than 15,000 lines. Even frontier models eventually truncate history, turning agents into partially observable agents with no shared memory protocol worth the name. In classical MARL we learned that fully decentralized POMDPs explode in complexity without communication. LLM agents face the same partial-observability problem, except the &ldquo;observation&rdquo; is whatever still fits in the window.</p>
+
+        <p>Every failure mode in this bucket is downstream of the same thing: we split because context is finite; now we pay for the split with misalignment.</p>
+
+        <h2>4. Centralized architectures still win when coordination is expensive</h2>
+
+        <p>Look at the failure profiles across frameworks (Figure 4 and Appendix F of [1]). Hierarchical and assembly-line designs (ChatDev, MetaGPT) show distinct fingerprints, but the star-topology and fully decentralized setups bleed into premature termination and verification disasters.</p>
+
+        <p>The paper is careful not to over-claim, yet the pattern matches decades of MARL literature: a strong centralized planner or critic often outperforms pure peer-to-peer coordination when communication is costly or noisy. LLM agents simply replaced &ldquo;message-passing overhead&rdquo; with &ldquo;token budget and context-truncation overhead.&rdquo; If your task fits in one context, centralize. If it doesn&rsquo;t, centralize the <em>orchestration</em> even as you distribute the work , which is what the next lesson is really about.</p>
+
+        <h2>5. Verification is not a silver bullet , structural redesign is</h2>
+
+        <p>Even frameworks with explicit verifiers (MetaGPT, ChatDev) still fail at high rates. Superficial checks (&ldquo;does it compile?&rdquo;) miss semantic bugs and high-level objective violations. MAST&rsquo;s Task Verification category is <strong>23.6%</strong>, and the authors note that &ldquo;sole reliance on final-stage, low-level checks is inadequate.&rdquo;</p>
+
+        <p>Their intervention studies are telling: tactical prompt and role tweaks give measurable gains, but the remaining error mass demands <em>structural</em> redesign , better memory architectures, standardized communication protocols, learned selective attention, and multi-level verification that draws on external knowledge and symbolic validation.</p>
+
+        <p>Sound familiar? It&rsquo;s the same roadmap MARL followed from simple Q-learning to MAPPO, graph attention, and learned communication protocols. None of that work was an attack on the agents; all of it was an attack on the coordination layer. That&rsquo;s the layer the next wave of LLM-MAS research has to own.</p>
+
+        <h2>The road ahead</h2>
+
+        <p>MAST-Data, the taxonomy, and the open-sourced LLM annotator are gifts to the community. They give us a shared language and a benchmark for failure modes instead of vague &ldquo;it didn&rsquo;t work&rdquo; anecdotes.</p>
+
+        <p>But the deepest lesson is architectural humility. Just as classical distributed systems taught us that throwing more nodes at a problem doesn&rsquo;t magically solve coordination, today&rsquo;s LLM-MAS research has to treat context as the scarce resource it is. Distributing agents does pool cognitive power , exactly like distributing compute , but only if we design the communication and memory layers with the same rigor we once applied to message-passing interfaces and shared-memory consistency.</p>
+
+        <p>That puts the spotlight squarely on the orchestrator. The real research agenda is no longer &ldquo;build a better agent&rdquo; , it is <strong>build a better orchestrator</strong>: one that knows when a task fits in a single context and refuses to split; that decomposes tasks along natural interfaces rather than arbitrary role fences; that assigns each sub-task to the agent best suited to hold its state; and that maintains first-class, persistent memory so the chain doesn&rsquo;t have to re-serialize the whole problem at every hop.</p>
+
+        <p>If we already know centralized control often outperforms pure distribution in MARL when coordination is expensive, why are we so sure that scaling context windows alone will save fully decentralized LLM agent teams? The failures are no longer mysterious. Thanks to MAST, they are measurable, classifiable, and , most importantly , fixable. The next breakthrough won&rsquo;t come from a bigger model. It will come from an orchestrator that finally respects the physics of limited context the way classical systems respected the physics of limited bandwidth.</p>
+
+        <div class="references">
+            <h2>References</h2>
+            <ol>
+                <li>Cemri, M., Pan, M. Z., Yang, S., Agrawal, L. A., Chopra, B., Tiwari, R., Keutzer, K., Parameswaran, A., Klein, D., Ramchandran, K., Zaharia, M., Gonzalez, J. E., &amp; Stoica, I. (2025). <em>Why Do Multi-Agent LLM Systems Fail?</em> arXiv:2503.13657. <a href="https://arxiv.org/abs/2503.13657" target="_blank" rel="noopener noreferrer">arxiv.org/abs/2503.13657</a></li>
+                <li>Gao, S., et al. (2025). <em>When One LLM Drools, Multi-LLM Collaboration Rules</em> (and related MAS vs SAS analyses). arXiv:2505.18286.</li>
+                <li>Tran, Q. D., &amp; Kiela, D. (2025). <em>Multi-Agent Collaboration Mechanisms: A Survey of LLMs</em> (and matched thinking-token comparisons).</li>
+            </ol>
+        </div>
+
+    </article>
+
+    <footer>
+        &copy; 2026 Daniel Gordon
+    </footer>
+
+    <script>
+        (() => {
+            const REQS = [
+                { n: 1, label: 'validate input' },
+                { n: 2, label: 'retry on 5xx' },
+                { n: 3, label: 'log to stderr' },
+                { n: 4, label: 'JSON {a,b,c}' },
+                { n: 5, label: 'cache 60s' },
+                { n: 6, label: 'SIGTERM' }
+            ];
+
+            const $chainLen = document.getElementById('chain-len');
+            const $budget = document.getElementById('budget');
+            const $noise = document.getElementById('noise');
+            const $chainLenVal = document.getElementById('chain-len-val');
+            const $budgetVal = document.getElementById('budget-val');
+            const $noiseVal = document.getElementById('noise-val');
+            const $btnRun = document.getElementById('btn-run');
+            const $btnReset = document.getElementById('btn-reset');
+            const $btnSeed = document.getElementById('btn-seed');
+            const $chain = document.getElementById('chain');
+            const $score = document.getElementById('score');
+
+            const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+            let seed = 1;
+
+            const mulberry32 = (a) => () => {
+                let t = (a += 0x6D2B79F5);
+                t = Math.imul(t ^ (t >>> 15), t | 1);
+                t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+                return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+            };
+
+            const updateLabels = () => {
+                $chainLenVal.textContent = $chainLen.value;
+                $budgetVal.textContent = $budget.value;
+                $noiseVal.textContent = $noise.value + '%';
+            };
+
+            const simulate = ({ chainLength, budget, noise, seed }) => {
+                const rng = mulberry32(seed);
+                const status = REQS.map(() => 'preserved');
+                const cards = [status.slice()];
+                for (let hop = 1; hop < chainLength; hop++) {
+                    // 1. Truncation: drop oldest (by original index) beyond budget.
+                    const inCtx = [];
+                    for (let i = 0; i < REQS.length; i++) {
+                        if (status[i] !== 'dropped') inCtx.push(i);
+                    }
+                    const overflow = inCtx.length - budget;
+                    for (let k = 0; k < overflow; k++) {
+                        status[inCtx[k]] = 'dropped';
+                    }
+                    // 2. Noise: corrupt each surviving requirement with prob `noise`.
+                    for (let i = 0; i < REQS.length; i++) {
+                        if (status[i] !== 'dropped' && rng() < noise) {
+                            if (status[i] === 'preserved') status[i] = 'corrupted';
+                        }
+                    }
+                    cards.push(status.slice());
+                }
+                return cards;
+            };
+
+            const scoreFor = (lastCard) =>
+                lastCard.reduce((acc, s) => acc + (s === 'preserved' ? 1 : 0), 0);
+
+            const renderCard = (cardStatus, idx, isSingle) => {
+                const div = document.createElement('div');
+                div.className = 'agent-card' + (isSingle ? ' single' : '');
+                div.setAttribute('role', 'listitem');
+                const title = document.createElement('div');
+                title.className = 'agent-title';
+                title.textContent = 'Agent ' + (idx + 1);
+                div.appendChild(title);
+                const ul = document.createElement('ul');
+                cardStatus.forEach((s, i) => {
+                    const li = document.createElement('li');
+                    const num = document.createElement('span');
+                    num.className = 'num';
+                    num.textContent = REQS[i].n + '.';
+                    const label = document.createElement('span');
+                    label.className = 'status-' + s;
+                    label.textContent = REQS[i].label;
+                    li.appendChild(num);
+                    li.appendChild(label);
+                    ul.appendChild(li);
+                });
+                div.appendChild(ul);
+                return div;
+            };
+
+            const scoreClass = (score) => {
+                if (score >= 5) return 's-high';
+                if (score >= 3) return 's-mid';
+                return 's-low';
+            };
+
+            const render = (cards, chainLength) => {
+                $chain.innerHTML = '';
+                const nodes = cards.map((c, i) =>
+                    renderCard(c, i, chainLength === 1)
+                );
+                nodes.forEach((n) => $chain.appendChild(n));
+                const reveal = (i) => {
+                    if (i >= nodes.length) return;
+                    nodes[i].classList.add('visible');
+                    if (prefersReducedMotion) {
+                        reveal(i + 1);
+                    } else {
+                        setTimeout(() => reveal(i + 1), 250);
+                    }
+                };
+                if (prefersReducedMotion) {
+                    nodes.forEach((n) => n.classList.add('visible'));
+                } else {
+                    reveal(0);
+                }
+                const finalScore = scoreFor(cards[cards.length - 1]);
+                $score.className = 'score ' + scoreClass(finalScore);
+                $score.innerHTML =
+                    '<div class="headline">Fidelity: <span class="num">' +
+                    finalScore + '/6</span> preserved.</div>' +
+                    '<div class="pin">Chain length 1 (single LLM) always scores 6/6.</div>';
+            };
+
+            const run = () => {
+                updateLabels();
+                const chainLength = parseInt($chainLen.value, 10);
+                const budget = parseInt($budget.value, 10);
+                const noise = parseInt($noise.value, 10) / 100;
+                const cards = simulate({ chainLength, budget, noise, seed });
+                render(cards, chainLength);
+            };
+
+            const reset = () => {
+                $chainLen.value = 3;
+                $budget.value = 4;
+                $noise.value = 0;
+                seed = 1;
+                updateLabels();
+                $chain.innerHTML = '';
+                $score.className = 'score';
+                $score.innerHTML =
+                    '<div class="headline">Press <em>Run trace</em> to simulate.</div>' +
+                    '<div class="pin">Chain length 1 (single LLM) always scores 6/6.</div>';
+            };
+
+            [$chainLen, $budget, $noise].forEach((el) =>
+                el.addEventListener('input', updateLabels)
+            );
+            $btnRun.addEventListener('click', run);
+            $btnReset.addEventListener('click', reset);
+            $btnSeed.addEventListener('click', () => {
+                seed = Math.floor(Math.random() * 0x7fffffff) + 1;
+                run();
+            });
+
+            updateLabels();
+        })();
+    </script>
+
+</body>
+</html>

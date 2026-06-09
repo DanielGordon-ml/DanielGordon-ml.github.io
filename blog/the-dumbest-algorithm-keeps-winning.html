@@ -1,0 +1,789 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Dumbest Algorithm Keeps Winning: Why "Optimal" Loses to a Coin Flip | Daniel Gordon</title>
+    <meta name="description" content="A hands-on tour of the multi-armed bandit: why dead-simple heuristics like epsilon-greedy beat the provably-optimal UCB1, and why the real winner is the tuning, not the theorem. With an interactive pull-the-lever game.">
+    <meta property="og:title" content="The Dumbest Algorithm Keeps Winning: Why &quot;Optimal&quot; Loses to a Coin Flip">
+    <meta property="og:description" content="Why simple bandit heuristics beat the provably-optimal algorithm, and why how you spend your exploration budget matters more than a theorem that says you spent it optimally.">
+    <meta property="og:type" content="article">
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" integrity="sha384-nB0miv6/jRmo5UMMR1wu3Gz6NLsoTkbqJghGIsx//Rlm+ZU03BU6SQNC66uf4l5+" crossorigin="anonymous">
+
+    <style>
+        :root {
+            --primary: #0f172a;
+            --secondary: #3b82f6;
+            --surface: #1e293b;
+            --border: #334155;
+            --text-primary: #f8fafc;
+            --text-secondary: #e2e8f0;
+            --text-muted: #94a3b8;
+            --text-dim: #64748b;
+            --accent-green: #22c55e;
+            --accent-red: #ef4444;
+            --accent-amber: #f59e0b;
+        }
+
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        html { scroll-behavior: smooth; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            line-height: 1.7;
+            color: var(--text-secondary);
+            background-color: var(--primary);
+        }
+
+        nav {
+            position: fixed;
+            top: 0; left: 0; right: 0; z-index: 100;
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 0.75rem 2rem;
+            background-color: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .nav-logo {
+            font-size: 1.25rem; font-weight: 700;
+            color: var(--text-primary); text-decoration: none; letter-spacing: 1px;
+        }
+
+        .back-link {
+            color: var(--text-muted); text-decoration: none;
+            font-size: 0.85rem; letter-spacing: 1px; text-transform: uppercase;
+            transition: color 0.2s ease;
+        }
+        .back-link:hover, .back-link:focus-visible { color: var(--secondary); }
+
+        article {
+            max-width: 780px;
+            margin: 0 auto;
+            padding: 7rem 2rem 4rem;
+        }
+
+        .post-meta {
+            display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: center;
+            margin-bottom: 1rem;
+            color: var(--text-dim);
+            font-size: 0.85rem;
+        }
+        .post-meta .dot { color: var(--text-dim); }
+        .post-meta .tag {
+            background-color: var(--surface);
+            color: var(--secondary);
+            padding: 0.2rem 0.7rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            border: 1px solid var(--border);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        article h1 {
+            font-size: 2.2rem; font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 2rem;
+            line-height: 1.25;
+            letter-spacing: -0.01em;
+        }
+
+        article h2 {
+            font-size: 1.45rem; font-weight: 600;
+            color: var(--text-primary);
+            margin-top: 3rem; margin-bottom: 1rem;
+            line-height: 1.3;
+        }
+
+        article h3 {
+            font-size: 1.1rem; font-weight: 600;
+            color: var(--text-primary);
+            margin-top: 2rem; margin-bottom: 0.75rem;
+        }
+
+        article p {
+            margin-bottom: 1.25rem;
+            font-size: 1.02rem;
+        }
+
+        article a {
+            color: var(--secondary);
+            text-decoration: underline;
+            text-underline-offset: 2px;
+            text-decoration-thickness: 1px;
+        }
+        article a:hover, article a:focus-visible { color: #60a5fa; }
+
+        article ul, article ol {
+            margin: 0 0 1.25rem 1.5rem;
+            color: var(--text-secondary);
+        }
+        article li { margin-bottom: 0.5rem; }
+
+        article strong { color: var(--text-primary); }
+        article em { color: var(--text-secondary); }
+
+        article blockquote {
+            border-left: 3px solid var(--secondary);
+            padding: 0.75rem 1.25rem;
+            margin: 1.5rem 0;
+            background-color: var(--surface);
+            color: var(--text-secondary);
+            border-radius: 0 6px 6px 0;
+        }
+        article blockquote p:last-child { margin-bottom: 0; }
+        article blockquote cite {
+            display: block;
+            margin-top: 0.5rem;
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            font-style: normal;
+        }
+
+        figure {
+            margin: 2.5rem 0;
+            text-align: center;
+        }
+        figure img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 8px;
+            background-color: var(--surface);
+            border: 1px solid var(--border);
+        }
+        figcaption {
+            margin-top: 0.75rem;
+            color: var(--text-muted);
+            font-size: 0.85rem;
+            font-style: italic;
+            text-align: left;
+        }
+
+        .references {
+            margin-top: 3rem;
+            padding-top: 2rem;
+            border-top: 1px solid var(--border);
+            font-size: 0.92rem;
+        }
+        .references h2 { margin-top: 0; }
+        .references ol {
+            list-style: decimal;
+            color: var(--text-muted);
+        }
+        .references li { margin-bottom: 0.6rem; }
+
+        footer {
+            text-align: center;
+            padding: 2rem;
+            color: var(--text-dim);
+            font-size: 0.85rem;
+            border-top: 1px solid var(--border);
+        }
+
+        *:focus-visible {
+            outline: 2px solid var(--secondary);
+            outline-offset: 2px;
+        }
+
+        /* KaTeX dark-theme tuning */
+        .katex { color: var(--text-primary); }
+        .katex-display { overflow-x: auto; overflow-y: hidden; padding: 0.5rem 0; }
+
+        /* ── Bandit game demo ── */
+        .demo {
+            margin: 2.5rem 0 3rem;
+            padding: 1.5rem;
+            background-color: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+        }
+        .demo h3 {
+            margin-top: 0 !important;
+            color: var(--text-primary);
+            font-size: 1.05rem;
+        }
+        .demo .lead {
+            font-size: 0.92rem;
+            color: var(--text-muted);
+            margin-bottom: 1.25rem;
+        }
+
+        .demo .controls {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1.25rem;
+        }
+        .demo .control label {
+            display: flex; justify-content: space-between; align-items: baseline;
+            font-size: 0.82rem;
+            color: var(--text-muted);
+            margin-bottom: 0.35rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .demo .control label .val {
+            color: var(--text-primary);
+            font-weight: 600;
+            font-variant-numeric: tabular-nums;
+            text-transform: none;
+            letter-spacing: 0;
+        }
+        .demo .control input[type="range"] {
+            width: 100%;
+            accent-color: var(--secondary);
+        }
+
+        .demo .buttons {
+            display: flex; flex-wrap: wrap; gap: 0.6rem;
+            margin-bottom: 1.25rem;
+        }
+        .demo button {
+            font-family: inherit;
+            font-size: 0.88rem;
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            border: 1px solid var(--border);
+            background-color: var(--primary);
+            color: var(--text-primary);
+            cursor: pointer;
+            transition: background-color 0.15s ease, border-color 0.15s ease;
+        }
+        .demo button.primary {
+            background-color: var(--secondary);
+            border-color: var(--secondary);
+            color: #fff;
+        }
+        .demo button.primary:hover, .demo button.primary:focus-visible {
+            background-color: #2563eb; border-color: #2563eb;
+        }
+        .demo button:not(.primary):hover, .demo button:not(.primary):focus-visible {
+            border-color: var(--secondary);
+        }
+
+        /* lever row */
+        .demo .levers {
+            display: flex; flex-wrap: wrap; gap: 0.55rem;
+            margin-bottom: 1.25rem;
+        }
+        .demo .lever {
+            flex: 1 1 84px; min-width: 76px;
+            background-color: var(--primary);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 0.6rem 0.4rem;
+            text-align: center;
+            color: var(--text-secondary);
+            transition: border-color 0.15s ease, transform 0.1s ease, background-color 0.3s ease;
+        }
+        .demo .lever:hover:not(:disabled) { border-color: var(--secondary); transform: translateY(-2px); }
+        .demo .lever:disabled { cursor: default; }
+        .demo .lever .lv-idx {
+            font-size: 0.74rem; color: var(--text-muted);
+            text-transform: uppercase; letter-spacing: 1px;
+        }
+        .demo .lever .lv-rate {
+            font-size: 1.15rem; font-weight: 600; color: var(--text-primary);
+            font-variant-numeric: tabular-nums; margin: 0.2rem 0 0.1rem;
+        }
+        .demo .lever .lv-count { font-size: 0.7rem; color: var(--text-dim); }
+        .demo .lever .lv-true {
+            font-size: 0.7rem; color: var(--accent-amber); margin-top: 0.25rem;
+            border-top: 1px dashed var(--border); padding-top: 0.2rem;
+        }
+        .demo .lever.best { border-color: var(--accent-green); }
+        .demo .lever.best .lv-idx { color: var(--accent-green); }
+        .demo .lever.flash-win { background-color: rgba(34, 197, 94, 0.22); }
+        .demo .lever.flash-loss { background-color: rgba(239, 68, 68, 0.18); }
+
+        /* stats row */
+        .demo .stats {
+            display: flex; flex-wrap: wrap; gap: 0.8rem; margin-bottom: 1rem;
+        }
+        .demo .stat {
+            flex: 1 1 120px;
+            background-color: var(--primary);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 0.6rem 0.85rem;
+        }
+        .demo .stat .s-label {
+            font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.5px;
+            color: var(--text-muted);
+        }
+        .demo .stat .s-val {
+            font-size: 1.3rem; font-weight: 600; color: var(--text-primary);
+            font-variant-numeric: tabular-nums;
+        }
+        .demo .stat.regret .s-val { color: var(--accent-amber); }
+
+        .demo .verdict {
+            padding: 0.9rem 1.1rem;
+            background-color: var(--primary);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 0.92rem;
+            color: var(--text-secondary);
+        }
+        .demo .verdict.high { border-color: var(--accent-green); }
+        .demo .verdict.mid { border-color: var(--accent-amber); }
+        .demo .verdict.low { border-color: var(--accent-red); }
+        .demo .eg-result {
+            margin-top: 0.75rem;
+            font-size: 0.88rem;
+            color: var(--text-muted);
+        }
+        .demo .eg-result strong { color: var(--secondary); }
+
+        @media (prefers-reduced-motion: reduce) {
+            .demo .lever { transition: none !important; }
+        }
+
+        @media (max-width: 768px) {
+            nav { padding: 0.5rem 1rem; }
+            article { padding: 6rem 1.25rem 3rem; }
+            article h1 { font-size: 1.7rem; }
+            article h2 { font-size: 1.25rem; }
+            .demo { padding: 1.25rem; }
+        }
+    </style>
+</head>
+<body>
+
+    <nav aria-label="Primary">
+        <a href="../" class="nav-logo">DG</a>
+        <a href="../#blog" class="back-link">&larr; Back to Blog</a>
+    </nav>
+
+    <article>
+        <div class="post-meta">
+            <span>June 9, 2026</span>
+            <span class="dot">&middot;</span>
+            <span>~14 min read</span>
+            <span class="tag">Reinforcement Learning</span>
+            <span class="tag">Bandits</span>
+            <span class="tag">Paper Review</span>
+        </div>
+
+        <h1>The Dumbest Algorithm Keeps Winning: Why &ldquo;Optimal&rdquo; Loses to a Coin Flip</h1>
+
+        <p>You walk into a casino and face ten slot machines. Each one pays out at its own fixed-but-secret rate. You have a thousand pulls. Every pull costs you the chance to have pulled a different lever &mdash; so every pull is two bets at once: a bet on <em>winning now</em>, and a bet on <em>learning something useful for later</em>.</p>
+
+        <p>Play it too safe &mdash; keep yanking the first machine that pays &mdash; and you may never discover the one down the row that pays twice as often. Play it too curious &mdash; sample everything, forever &mdash; and you spend your whole bankroll gathering data you never cash in on.</p>
+
+        <p>That tension has a name: the <strong>exploration&ndash;exploitation tradeoff</strong>. And the slot machines have a name too &mdash; the <strong>multi-armed bandit</strong>. It looks like a toy. It is not. The same problem sits underneath A/B testing, ad allocation, recommender systems, clinical trial design, network routing, and &mdash; lately &mdash; how large language models get evaluated and routed in production.</p>
+
+        <p>If you take one idea from this post, take this one: <strong>how you spend your exploration budget &mdash; the tuning, the initialization, the fit to the problem in front of you &mdash; matters more than owning a theorem that says you spent it optimally.</strong> We&rsquo;ll build intuition, meet the classic algorithms, and run a clean head-to-head whose result genuinely surprised the field: <strong>the simplest heuristics in the room routinely beat the algorithm with the Fields-medal-grade theory behind it.</strong> Every number and figure below comes from a small simulation you can reproduce; the code ships alongside this post.</p>
+
+        <h2>1. The setup: a row of unknown odds</h2>
+
+        <p>Formally, a stochastic bandit is a set of $K$ arms. Arm $i$ has a reward distribution $D_i$ with an unknown mean $\mu_i$. At each turn $t = 1, 2, \dots$ you choose an arm $j(t)$ and receive a random reward $r(t) \sim D_{j(t)}$. That&rsquo;s the whole game. No state, no chess board, no opponent &mdash; just $K$ levers and the slow accumulation of evidence about which one is best.</p>
+
+        <figure>
+            <img src="assets/bandit_fig1_setup.png" alt="Bar chart of the hidden true win rates of a 10-armed bandit. Arm #2 is highest at 0.90 (marked best), arm #6 close behind at 0.87, arm #7 near zero. The agent never sees this chart." loading="lazy">
+            <figcaption>Figure 1 &mdash; The world, as only the universe sees it. Each bar is an arm&rsquo;s true win rate $\mu_i$. The agent starts knowing none of these values and must reconstruct the ranking from noisy samples. Notice how close arm #2 (0.90) and arm #6 (0.87) are: distinguishing near-twins is exactly where the difficulty lives.</figcaption>
+        </figure>
+
+        <p>The catch is that you only ever see <em>samples</em>, never the bars themselves. Pull arm #6 a few times and get unlucky, and it looks worse than arm #8. The whole challenge is statistical: separate signal from noise while the meter is running.</p>
+
+        <h2>2. Keeping score: regret</h2>
+
+        <p>How do we grade a strategy? Not by raw reward &mdash; that depends on the luck of the draw &mdash; but by <strong>regret</strong>: how much worse you did than an oracle who knew the best arm $\mu^{*} = \max_i \mu_i$ from the start.</p>
+
+        <p>$$R_T = T\mu^{*} - \sum_{t=1}^{T} \mu_{j(t)}$$</p>
+
+        <p>Regret is the price of not knowing. Pull the best arm every time and your regret is zero. Every suboptimal pull adds its <em>gap</em> $\mu^{*} - \mu_{j(t)}$ to the tab.</p>
+
+        <p>Here&rsquo;s the first deep result, due to Lai and Robbins (1985): you <strong>cannot</strong> drive regret to zero, no matter how clever you are. Any algorithm that eventually finds the best arm must keep sampling the others often enough to stay sure &mdash; and that sampling has a floor that grows with time:</p>
+
+        <p>$$R_T = \Omega(\log T)$$</p>
+
+        <blockquote>
+            <p>Regret grows at least logarithmically. An algorithm is said to <em>solve</em> the bandit problem if it matches this lower bound &mdash; that is, if $R_T = O(\log T)$.</p>
+        </blockquote>
+
+        <p>This is a beautiful, slightly humbling fact. The best you can hope for is to be <em>wrong forever</em>, just increasingly rarely. The whole game is about how small you can make the constant in front of that logarithm.</p>
+
+        <h3>Feel it yourself: take the levers</h3>
+
+        <p>Before we meet a single algorithm, play the bandit by hand. Below is a real, seeded bandit. Each arm pays out $1$ or $0$ at its own hidden rate; you get a fixed budget of pulls. Your <strong>regret</strong> &mdash; the gap to an oracle that always plays the best arm &mdash; ticks up every time you pull something less than the best. Try to keep it low. Then, when the round ends, see the true odds, and let a one-line $\epsilon$-greedy heuristic play the exact same board so you can compare.</p>
+
+        <section class="demo" id="bandit-game" aria-label="Pull-the-lever bandit game">
+            <h3>Pull-the-lever bandit</h3>
+            <p class="lead">Click an arm to pull it. Each pull is one bet of your budget. You see only what you&rsquo;ve learned &mdash; each arm&rsquo;s observed win rate and how many times you&rsquo;ve tried it. The true rates stay hidden until the round ends.</p>
+
+            <div class="controls">
+                <div class="control">
+                    <label for="bg-arms">Arms <span class="val" id="bg-arms-val">6</span></label>
+                    <input type="range" id="bg-arms" min="4" max="10" step="1" value="6">
+                </div>
+                <div class="control">
+                    <label for="bg-budget">Pull budget <span class="val" id="bg-budget-val">40</span></label>
+                    <input type="range" id="bg-budget" min="20" max="100" step="5" value="40">
+                </div>
+            </div>
+
+            <div class="stats">
+                <div class="stat">
+                    <div class="s-label">Pulls left</div>
+                    <div class="s-val" id="bg-pulls-left">40</div>
+                </div>
+                <div class="stat">
+                    <div class="s-label">Reward collected</div>
+                    <div class="s-val" id="bg-reward">0</div>
+                </div>
+                <div class="stat regret">
+                    <div class="s-label">Your regret</div>
+                    <div class="s-val" id="bg-regret">0.0</div>
+                </div>
+            </div>
+
+            <div class="levers" id="bg-levers" role="group" aria-label="Bandit arms"></div>
+
+            <div class="buttons">
+                <button id="bg-reveal" type="button">Reveal odds &amp; end round</button>
+                <button id="bg-eg" type="button">Let &epsilon;-greedy play this board</button>
+                <button class="primary" id="bg-new" type="button">&#x21bb; New board</button>
+            </div>
+
+            <div class="verdict" id="bg-verdict" role="status" aria-live="polite">Pull any arm. You have 40 pulls to keep your regret low.</div>
+            <div class="eg-result" id="bg-eg-result" hidden></div>
+        </section>
+
+        <p>Play it for a minute and the tradeoff stops being a phrase and starts being a feeling. Pound one arm that paid early and you risk never finding the better one two seats down. Spread your pulls evenly and you bleed regret on arms you already suspect are duds. Now let&rsquo;s see how the textbook algorithms make exactly this choice.</p>
+
+        <h2>3. The dilemma, made visual</h2>
+
+        <p>Before any clever algorithm, look at the two ways to lose. Two strategies sit at the extremes:</p>
+
+        <ul>
+            <li><strong>Pure exploitation (&ldquo;greedy&rdquo;):</strong> always pull the arm that <em>currently</em> looks best. No curiosity at all.</li>
+            <li><strong>Pure exploration (&ldquo;random&rdquo;):</strong> ignore what you&rsquo;ve learned and pull uniformly at random.</li>
+        </ul>
+
+        <p>Intuitively, both should be terrible &mdash; and they are, but for opposite reasons.</p>
+
+        <figure>
+            <img src="assets/bandit_fig2_dilemma.png" alt="Two panels. Left: cumulative regret over 1000 pulls for random (gray) and greedy (orange) climbing nearly straight up, while epsilon-greedy (blue) bends toward flat. Right: percentage of optimal pulls; random and greedy stuck near 10%, epsilon-greedy rising to about 85%." loading="lazy">
+            <figcaption>Figure 2 &mdash; Both extremes fail. Random (gray) never commits, so its regret climbs in a straight line and it plays the best arm only ~10% of the time &mdash; exactly chance for ten arms. Pure greedy (orange) is barely better: it latches onto whichever arm happened to look good after a couple of lucky pulls and never reconsiders, getting stuck on the wrong arm in most runs. Add just a pinch of randomness &mdash; $\epsilon$-greedy (blue) &mdash; and everything changes: regret bends toward flat and the agent finds the best arm ~85% of the time.</figcaption>
+        </figure>
+
+        <p>That orange line is the one to sit with. Greedy isn&rsquo;t reckless; it&rsquo;s <em>reasonable</em>. It always does the locally optimal thing. And it ends up almost as bad as picking at random, because a single unlucky early sample of the true best arm is enough to make it write that arm off forever. <strong>Exploitation without exploration is just confident failure.</strong></p>
+
+        <p>The fix in the blue curve is almost insultingly simple, which brings us to the contenders.</p>
+
+        <h2>4. The contenders</h2>
+
+        <p>Every classic bandit algorithm is, at heart, a different answer to one question: <em>how should I inject exploration into an otherwise greedy policy?</em> Each maintains a running estimate $\hat{\mu}_i$ (call it $Q_i$) of every arm&rsquo;s value, updated incrementally after each pull.</p>
+
+        <p><strong>$\epsilon$-greedy &mdash; explore by coin flip.</strong> With probability $1-\epsilon$, pull the arm with the highest estimate; with probability $\epsilon$, pull a random arm.</p>
+
+        <p>$$p_i(t{+}1) = \begin{cases} 1-\epsilon+\epsilon/K & \text{if } i = \arg\max_j \hat{\mu}_j(t)\\ \epsilon/K & \text{otherwise}\end{cases}$$</p>
+
+        <p>It&rsquo;s a thermostat with one dial. Crude &mdash; it explores <em>bad</em> arms exactly as often as <em>promising</em> ones &mdash; but shockingly effective, which is the whole punchline of this post.</p>
+
+        <p><strong>Softmax (Boltzmann) &mdash; explore in proportion to promise.</strong> Instead of exploring uniformly, pick each arm with a probability that rises with its estimated value, sharpened by a temperature $\tau$:</p>
+
+        <p>$$p_i(t{+}1) = \frac{e^{\hat{\mu}_i(t)/\tau}}{\sum_{j=1}^{K} e^{\hat{\mu}_j(t)/\tau}}$$</p>
+
+        <p>When $\tau \to 0$ it becomes pure greedy; when $\tau \to \infty$ it becomes pure random. In between, it spends its exploration budget on plausible contenders instead of wasting it on obvious duds.</p>
+
+        <p><strong>UCB1 &mdash; optimism in the face of uncertainty.</strong> Here&rsquo;s the elegant one. Don&rsquo;t explore randomly at all. Instead, give every arm a <em>confidence bonus</em> that&rsquo;s large when you&rsquo;ve pulled it rarely and shrinks as evidence accumulates, then act greedily on the inflated values:</p>
+
+        <p>$$j(t) = \arg\max_{i} \left( \hat{\mu}_i + \sqrt{\frac{2\ln t}{n_i}} \right)$$</p>
+
+        <p>The square-root term is the genius. An arm you&rsquo;ve barely tried gets the benefit of the doubt; an arm you&rsquo;ve sampled a thousand times is judged on its merits. UCB1 comes with a <em>proof</em>: its regret is $O(\log t)$, matching the Lai&ndash;Robbins lower bound up to a constant. It is, in the formal sense, <strong>optimal</strong>. (Two other classics &mdash; <em>pursuit</em> and <em>reinforcement comparison</em> &mdash; round out the family, but they rarely outperform these three, so we&rsquo;ll keep the spotlight here.)</p>
+
+        <p>So we have three strategies: two dead-simple heuristics with no guarantees, and one mathematically optimal algorithm. Which would you bet on?</p>
+
+        <h2>5. The head-to-head &mdash; and the surprise</h2>
+
+        <p>Let&rsquo;s race them on the exact bandit from Figure 1: ten arms, moderate noise, a thousand pulls, averaged over four thousand independent games. The result is the reason Kuleshov and Precup&rsquo;s empirical study is still cited a decade later.</p>
+
+        <figure>
+            <img src="assets/bandit_fig3_head_to_head.png" alt="Two panels for epsilon-greedy, softmax, and UCB1 under an optimistic start. Left: cumulative regret, with UCB1 (purple) highest at about 131, epsilon-greedy (blue) at about 47, softmax (orange) lowest at about 20. Right: optimal-arm rate, with epsilon-greedy near 84%, softmax near 73%, and UCB1 trailing at about 54%." loading="lazy">
+            <figcaption>Figure 3 &mdash; The &ldquo;optimal&rdquo; algorithm comes last. UCB1 (purple) accumulates roughly <strong>131</strong> total regret and is still pulling the best arm only ~54% of the time at the buzzer. Softmax (orange, ~<strong>20</strong>) and $\epsilon$-greedy (blue, ~<strong>47</strong>) &mdash; the two heuristics a first-year student could implement in an afternoon &mdash; leave it far behind.</figcaption>
+        </figure>
+
+        <p>Read that again. The algorithm with the regret bound, the optimism principle, the whole theoretical apparatus, loses to a coin flip. This isn&rsquo;t a fluke of one lucky seed; in the original study it held across nearly every problem instance the authors tried.</p>
+
+        <p>One disclosure before the victory lap, because it carries the rest of the post: all three contenders here run with a sensible, paper-faithful tuning &mdash; and that includes an <em>optimistic start</em>, where every arm&rsquo;s estimate is initialized high so the agent is nudged to taste each one before committing. Hold onto that detail. It is doing quiet work for the heuristics, and in &sect;6 we&rsquo;ll flip it off and watch this very leaderboard rearrange itself. For now the headline stands: with reasonable tuning, the two heuristics leave the provably-optimal algorithm far behind.</p>
+
+        <blockquote>
+            <p>Simple heuristics such as $\epsilon$-greedy and Boltzmann exploration outperform theoretically sound algorithms on most settings by a significant margin.</p>
+            <cite>&mdash; Kuleshov &amp; Precup, <em>Algorithms for the Multi-Armed Bandit Problem</em></cite>
+        </blockquote>
+
+        <p>Why does the optimal algorithm underperform? Because &ldquo;optimal&rdquo; is an <strong>asymptotic, worst-case</strong> statement. UCB1 is built to never be badly wrong <em>in the limit, against an adversarial problem</em>. Guaranteeing that requires it to keep probing arms long after a pragmatic gambler would have moved on &mdash; its confidence bonus fades only as $\sqrt{\ln t / n_i}$, so with ten arms it is still dutifully re-checking the losers at pull 1,000. The simple heuristics make no such promise and, freed from it, just go cash in.</p>
+
+        <p>There&rsquo;s a subtlety worth savoring in the right-hand panel. <strong>Softmax wins on regret but $\epsilon$-greedy wins on hit-rate.</strong> That&rsquo;s not a contradiction: $\epsilon$-greedy&rsquo;s fixed 10% random exploration occasionally pulls genuinely awful arms (raising regret) but relentlessly hammers the single best arm the rest of the time (raising hit-rate). Softmax almost never touches a terrible arm, but it keeps splitting its bets among the top two or three look-alikes. Which one is &ldquo;better&rdquo; depends entirely on whether your application is punished by <em>bad</em> choices or by <em>non-best</em> choices &mdash; a distinction the single word &ldquo;regret&rdquo; quietly hides.</p>
+
+        <h2>6. The twist: configuration is king</h2>
+
+        <p>If the first finding dents your faith in theory, the second should reshape how you <em>run experiments at all</em>. Watch what happens when we change exactly one thing &mdash; the value each arm is assigned <em>before any data arrives</em>. Standard practice starts every estimate at 0. &ldquo;Optimistic initialization&rdquo; starts them all high (say, 1.0), so that every untried arm looks irresistible and the agent is <em>forced</em> to taste each one before settling.</p>
+
+        <figure>
+            <img src="assets/bandit_fig4_scoreboard.png" alt="Grouped bar chart of total regret for greedy, epsilon-greedy, softmax, and UCB1 under standard start (gray) versus optimistic start (blue). Greedy drops from 384 to 12, softmax from 212 to 20, epsilon-greedy moves only 59 to 47, and UCB1 stays at 131 in both." loading="lazy">
+            <figcaption>Figure 4 &mdash; One knob, total reshuffle. Flipping initialization from standard (gray) to optimistic (blue) transforms the leaderboard. Pure greedy plunges from a hopeless <strong>384</strong> to a chart-topping <strong>12</strong> &mdash; optimism alone does all of its exploring for it. Softmax falls from <strong>212</strong> to <strong>20</strong>. Meanwhile $\epsilon$-greedy barely moves (<strong>59 &rarr; 47</strong>), and UCB1 sits unchanged at <strong>131</strong>, indifferent to a knob it doesn&rsquo;t use.</figcaption>
+        </figure>
+
+        <p>This is the quietly radical part. The &ldquo;best algorithm&rdquo; is not a property of the algorithm. It&rsquo;s a property of the algorithm <em>plus its tuning plus its initialization plus the specific problem.</em> Optimistic initialization turns naive greedy &mdash; the strategy we just watched fail in Figure 2 &mdash; into the single best performer on the board, because a rosy starting estimate is itself a form of built-in exploration. Change the knob, change the winner. (And notice: this is the same knob the Figure 3 contenders were quietly leaning on. Take it away and softmax&rsquo;s ~20 balloons to 212 &mdash; suddenly <em>worse</em> than the &ldquo;optimal&rdquo; UCB1 it was beating.)</p>
+
+        <blockquote>
+            <p>The average increase in total regret for an incorrectly tuned algorithm was roughly 20% &mdash; and a parameter value optimal on one bandit instance could suddenly become one of the worst after increasing the reward variance by a single notch.</p>
+            <cite>&mdash; Kuleshov &amp; Precup</cite>
+        </blockquote>
+
+        <p>The practical lesson is uncomfortable for anyone who has ever read one benchmark table and picked the top row: <strong>a bandit leaderboard tells you almost nothing unless every contender was tuned for the specific problem you actually face.</strong> $\epsilon$-greedy&rsquo;s real superpower in Figure 4 isn&rsquo;t that it wins &mdash; it&rsquo;s that it&rsquo;s <em>robust</em>, landing near the front whether you tune it carefully or not.</p>
+
+        <h2>7. What actually moves the needle</h2>
+
+        <p>The original study swept across many problem variants and asked which characteristics genuinely change the <em>ranking</em> of algorithms. The answer was bracingly short: only two things matter &mdash; <strong>the number of arms</strong> and <strong>the variance of the rewards.</strong> The shape of the reward distribution (normal, uniform, skewed, heavy-tailed) barely mattered at all; runs with wildly different distributions but matched means and variances produced near-identical rankings.</p>
+
+        <p>That&rsquo;s a gift to anyone designing experiments. It means you can characterize a new strategy on a small, well-chosen grid of (arm count &times; variance) settings and trust that the picture generalizes. It also gently warns theorists that chasing ever-tighter bounds based on higher moments of the reward distribution may be polishing a lever that isn&rsquo;t connected to anything.</p>
+
+        <h2>8. Why this is everywhere</h2>
+
+        <p>The reason this toy refuses to stay a toy is that <em>adaptive allocation under uncertainty</em> is a universal shape. A few places the exact same math shows up:</p>
+
+        <ul>
+            <li><strong>Clinical trials.</strong> This was the original motivation &mdash; Robbins framed it in 1952, and Gittins later called trial design the &ldquo;chief practical motivation&rdquo; for the whole field. The intuition is visceral: every patient assigned to the inferior treatment is a regret term with a human cost. Kuleshov and Precup re-ran a real 2001&ndash;2002 opioid-treatment trial as a simulation and found that a bandit-driven adaptive design would have <strong>successfully treated at least 50% more patients</strong>, with fewer adverse effects and better retention &mdash; while <em>still</em> identifying the better drug with high statistical confidence. The explore&ndash;exploit tradeoff, here, is literally measured in lives.</li>
+            <li><strong>A/B testing and ads.</strong> Classic A/B testing is pure exploration: split traffic 50/50, wait, then switch. A bandit shifts traffic toward the winner <em>as it learns</em>, cutting the cost of running the test. It also sidesteps the &ldquo;peeking&rdquo; problem that plagues fixed-horizon significance testing.</li>
+            <li><strong>Recommender systems.</strong> Every &ldquo;did you like this?&rdquo; is a pull. Contextual bandits power feed ranking and content selection on systems large enough that a 1% improvement is a real number.</li>
+            <li><strong>LLMs, circa now.</strong> This is the live frontier. Bandit strategies are being used to route queries among competing models, to allocate scarce human annotation in RLHF, and to run adaptive evaluations &mdash; one 2025 line of work reports identifying the best LLM variant <strong>~37% faster</strong> than naive A/B testing. <em>Dueling bandits</em>, which learn from pairwise preferences instead of absolute rewards, map almost perfectly onto preference-based alignment.</li>
+        </ul>
+
+        <p>And the algorithm most practitioners reach for today isn&rsquo;t even in our race. <strong>Thompson sampling</strong> &mdash; keep a Bayesian posterior over each arm&rsquo;s value, sample from it, and play the arm that wins the sample &mdash; tends to match or beat UCB while needing almost no tuning. It&rsquo;s the natural next chapter, and it inherits the same moral as everything above: a little principled randomness goes a long way.</p>
+
+        <h2>9. The takeaway</h2>
+
+        <p>Strip away the equations and the multi-armed bandit leaves you with a single, portable idea: <strong>information has value, and you have to pay for it in foregone reward.</strong> Every adaptive system &mdash; a trial, a recommender, an RLHF loop, arguably a career &mdash; is constantly deciding how much to spend.</p>
+
+        <p>The empirical surprise is that <em>how</em> you spend it matters more than having a theorem that says you spent it optimally. A dead-simple heuristic, tuned for the problem in front of it, repeatedly outran the algorithm with the better r&eacute;sum&eacute;. Theory tells you what&rsquo;s true in the limit; the limit is not where you live.</p>
+
+        <p>So here&rsquo;s the question to carry out of the casino: in your own systems, how much are you <em>currently</em> spending on exploration &mdash; and did you choose that number, or did it just default to zero?</p>
+
+        <h3>Figures &amp; reproducibility</h3>
+
+        <p>All figures were generated from a vectorized NumPy simulation (10 Gaussian arms, reward standard deviation 0.1, horizon 1,000 pulls, averaged over 4,000 independent runs, seed 2024). The full generator ships with this post as <code>blog/assets/bandit_figures.py</code> &mdash; run it, change <code>K</code> and <code>sigma</code>, and watch the leaderboard rearrange itself. The interactive game above runs the same logic, live, in your browser.</p>
+
+        <div class="references">
+            <h2>Sources &amp; further reading</h2>
+            <ol>
+                <li>Kuleshov, V. &amp; Precup, D. (2014). <em>Algorithms for the Multi-Armed Bandit Problem.</em> <a href="https://arxiv.org/abs/1402.6028" target="_blank" rel="noopener noreferrer">arXiv:1402.6028</a> &mdash; the source paper for this post.</li>
+                <li>Lai, T. L. &amp; Robbins, H. (1985). <em>Asymptotically efficient adaptive allocation rules.</em> Advances in Applied Mathematics &mdash; the $\Omega(\log T)$ lower bound.</li>
+                <li>Auer, P., Cesa-Bianchi, N. &amp; Fischer, P. (2002). <em>Finite-time analysis of the multiarmed bandit problem.</em> Machine Learning &mdash; UCB1.</li>
+                <li>Sutton, R. &amp; Barto, A. <em>Reinforcement Learning: An Introduction.</em> &mdash; the canonical reference for $\epsilon$-greedy, softmax, and the explore&ndash;exploit framing.</li>
+                <li><em>Multi-Armed Bandits Meet Large Language Models</em> (2025). <a href="https://arxiv.org/abs/2505.13355" target="_blank" rel="noopener noreferrer">arXiv:2505.13355</a> &mdash; survey of the modern LLM/RLHF connection.</li>
+                <li><a href="https://www.inwt-statistics.com/read-blog/multi-armed-bandits-as-an-a-b-testing-solution.html" target="_blank" rel="noopener noreferrer">Multi-Armed Bandits as an A/B Testing Solution</a> &mdash; practitioner framing.</li>
+            </ol>
+        </div>
+
+    </article>
+
+    <footer>
+        &copy; 2026 Daniel Gordon
+    </footer>
+
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js" integrity="sha384-7zkQWkzuo3B5mTepMUcHkMB5jZaolc2xDwL6VFqjFALcbeS9Ggm/Yr2r3Dy4lfFg" crossorigin="anonymous"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js" integrity="sha384-43gviWU0YVjaDtb/GhzOouOXtZMP/7XUzwPTstBeZFe/+rCMvRwr4yROQP43s0Xk" crossorigin="anonymous"
+        onload="renderMathInElement(document.body, {delimiters: [{left: '$$', right: '$$', display: true}, {left: '$', right: '$', display: false}], throwOnError: false});"></script>
+
+    <script>
+        (() => {
+            const $ = (id) => document.getElementById(id);
+            const armsCtl = $('bg-arms'), budgetCtl = $('bg-budget');
+            const armsVal = $('bg-arms-val'), budgetVal = $('bg-budget-val');
+            const leversEl = $('bg-levers'), verdictEl = $('bg-verdict');
+            const pullsLeftEl = $('bg-pulls-left'), rewardEl = $('bg-reward'), regretEl = $('bg-regret');
+            const btnNew = $('bg-new'), btnReveal = $('bg-reveal'), btnEg = $('bg-eg');
+            const egResultEl = $('bg-eg-result');
+            const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+            const mulberry32 = (a) => () => {
+                let t = (a += 0x6D2B79F5);
+                t = Math.imul(t ^ (t >>> 15), t | 1);
+                t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+                return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+            };
+
+            let seed = 1;
+            let K, budget, p, pulls, wins, rng, used, reward, regret, bestArm, over, revealed;
+
+            const newBoard = (s) => {
+                K = parseInt(armsCtl.value, 10);
+                budget = parseInt(budgetCtl.value, 10);
+                if (s !== undefined) seed = s;
+                rng = mulberry32(seed);
+                p = [];
+                for (let i = 0; i < K; i++) p.push(rng());
+                bestArm = 0;
+                for (let i = 1; i < K; i++) if (p[i] > p[bestArm]) bestArm = i;
+                pulls = new Array(K).fill(0);
+                wins = new Array(K).fill(0);
+                used = 0; reward = 0; regret = 0; over = false; revealed = false;
+                egResultEl.hidden = true; egResultEl.innerHTML = '';
+                buildLevers();
+                updateStats();
+                setVerdict('Pull any arm. You have ' + budget + ' pulls to keep your regret low.', '');
+            };
+
+            const buildLevers = () => {
+                leversEl.innerHTML = '';
+                for (let i = 0; i < K; i++) {
+                    const b = document.createElement('button');
+                    b.className = 'lever';
+                    b.type = 'button';
+                    b.id = 'lv-' + i;
+                    b.setAttribute('aria-label', 'Pull arm ' + (i + 1));
+                    b.addEventListener('click', () => pull(i));
+                    leversEl.appendChild(b);
+                }
+                renderLevers();
+            };
+
+            const renderLevers = () => {
+                for (let i = 0; i < K; i++) {
+                    const b = $('lv-' + i);
+                    if (!b) continue;
+                    const rate = pulls[i] > 0 ? (wins[i] / pulls[i]).toFixed(2) : '&mdash;';
+                    let html = '<div class="lv-idx">#' + (i + 1) + '</div>'
+                        + '<div class="lv-rate">' + rate + '</div>'
+                        + '<div class="lv-count">' + pulls[i] + ' pull' + (pulls[i] === 1 ? '' : 's') + '</div>';
+                    if (revealed) {
+                        html += '<div class="lv-true">true ' + p[i].toFixed(2) + (i === bestArm ? ' &#9733;' : '') + '</div>';
+                    }
+                    b.innerHTML = html;
+                    b.classList.toggle('best', revealed && i === bestArm);
+                    b.disabled = over;
+                }
+            };
+
+            const updateStats = () => {
+                pullsLeftEl.textContent = budget - used;
+                rewardEl.textContent = reward;
+                regretEl.textContent = regret.toFixed(1);
+            };
+
+            const flash = (i, outcome) => {
+                if (reduceMotion) return;
+                const b = $('lv-' + i);
+                if (!b) return;
+                const cls = outcome ? 'flash-win' : 'flash-loss';
+                b.classList.add(cls);
+                setTimeout(() => b.classList.remove(cls), 320);
+            };
+
+            const pull = (i) => {
+                if (over || used >= budget) return;
+                const outcome = rng() < p[i] ? 1 : 0;
+                pulls[i]++; wins[i] += outcome; used++; reward += outcome;
+                regret += (p[bestArm] - p[i]);
+                flash(i, outcome);
+                if (used >= budget) endRound(true);
+                renderLevers();
+                updateStats();
+            };
+
+            const endRound = (natural) => {
+                over = true; revealed = true;
+                renderLevers();
+                if (used === 0) {
+                    setVerdict('Round ended before a single pull &mdash; the best arm was #' + (bestArm + 1)
+                        + ' at rate ' + p[bestArm].toFixed(2) + '. Try a board: explore a little, then commit.', 'mid');
+                    return;
+                }
+                const onBest = pulls[bestArm];
+                const tried = pulls.filter((x) => x > 0).length;
+                const fracBest = onBest / used;
+                let msg, cls;
+                if (onBest === 0) {
+                    msg = 'You never pulled #' + (bestArm + 1) + ' &mdash; the real best arm (true rate '
+                        + p[bestArm].toFixed(2) + '). Textbook <strong>under-exploration</strong>: you committed before you had seen the whole row. Final regret ' + regret.toFixed(1) + '.';
+                    cls = 'low';
+                } else if (fracBest >= 0.6) {
+                    msg = 'You found #' + (bestArm + 1) + ' and rode it (' + Math.round(fracBest * 100)
+                        + '% of your pulls). That is the exploit half done right &mdash; your regret ' + regret.toFixed(1) + ' is near the floor.';
+                    cls = 'high';
+                } else if (tried >= K && fracBest < 0.35) {
+                    msg = 'You sampled all ' + K + ' arms but never committed hard to #' + (bestArm + 1)
+                        + '. <strong>Over-exploration</strong>: you kept paying to re-confirm losers. Final regret ' + regret.toFixed(1) + '.';
+                    cls = 'mid';
+                } else {
+                    msg = 'A mixed run: ' + tried + '/' + K + ' arms tried, ' + Math.round(fracBest * 100)
+                        + '% of pulls on the best arm (#' + (bestArm + 1) + '). Final regret ' + regret.toFixed(1)
+                        + ' &mdash; somewhere between too curious and too committed.';
+                    cls = 'mid';
+                }
+                setVerdict(msg, cls);
+            };
+
+            // epsilon-greedy on the SAME board (same hidden rates), averaged over many runs.
+            const runEpsilonGreedy = (eps, trials) => {
+                let total = 0;
+                for (let r = 0; r < trials; r++) {
+                    const er = mulberry32(((seed ^ 0x9e3779b9) + r * 0x85ebca6b) >>> 0);
+                    const Q = new Array(K).fill(0), n = new Array(K).fill(0);
+                    let reg = 0;
+                    for (let t = 0; t < budget; t++) {
+                        let a;
+                        if (er() < eps) {
+                            a = Math.floor(er() * K);
+                        } else {
+                            let bv = -Infinity, bi = 0;
+                            for (let i = 0; i < K; i++) {
+                                const q = Q[i] + 1e-9 * er();
+                                if (q > bv) { bv = q; bi = i; }
+                            }
+                            a = bi;
+                        }
+                        const out = er() < p[a] ? 1 : 0;
+                        n[a]++; Q[a] += (out - Q[a]) / n[a];
+                        reg += (p[bestArm] - p[a]);
+                    }
+                    total += reg;
+                }
+                return total / trials;
+            };
+
+            const showEpsilonGreedy = () => {
+                const egReg = runEpsilonGreedy(0.1, 400);
+                let line = '<strong>&epsilon;-greedy (&epsilon;=0.1)</strong> averages regret &asymp; '
+                    + egReg.toFixed(1) + ' on this exact board over ' + budget + ' pulls.';
+                if (over) {
+                    const verb = regret < egReg ? 'beat it' : (regret > egReg ? 'trailed it' : 'tied it');
+                    line += ' Your run: ' + regret.toFixed(1) + ' &mdash; you ' + verb + '.';
+                } else {
+                    line += ' Your run so far: ' + regret.toFixed(1) + ' after ' + used + ' pull' + (used === 1 ? '' : 's') + '.';
+                }
+                egResultEl.innerHTML = line;
+                egResultEl.hidden = false;
+            };
+
+            const setVerdict = (html, cls) => {
+                verdictEl.className = 'verdict' + (cls ? ' ' + cls : '');
+                verdictEl.innerHTML = html;
+            };
+
+            const syncLabels = () => {
+                armsVal.textContent = armsCtl.value;
+                budgetVal.textContent = budgetCtl.value;
+            };
+
+            armsCtl.addEventListener('input', () => { syncLabels(); newBoard(); });
+            budgetCtl.addEventListener('input', () => { syncLabels(); newBoard(); });
+            btnNew.addEventListener('click', () => newBoard((Math.floor(Math.random() * 0x7fffffff)) + 1));
+            btnReveal.addEventListener('click', () => { if (!over) endRound(false); });
+            btnEg.addEventListener('click', showEpsilonGreedy);
+
+            syncLabels();
+            newBoard(1);
+        })();
+    </script>
+
+</body>
+</html>

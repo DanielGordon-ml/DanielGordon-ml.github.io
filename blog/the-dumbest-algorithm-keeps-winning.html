@@ -371,59 +371,59 @@
 
         <h1>The Dumbest Algorithm Keeps Winning: Why &ldquo;Optimal&rdquo; Loses to a Coin Flip</h1>
 
-        <p>You walk into a casino and face ten slot machines. Each one pays out at its own fixed-but-secret rate. You have a thousand pulls. Every pull costs you the chance to have pulled a different lever &mdash; so every pull is two bets at once: a bet on <em>winning now</em>, and a bet on <em>learning something useful for later</em>.</p>
+        <p>You walk into a casino and face ten slot machines. Each one pays out at its own fixed-but-secret rate. You have a thousand pulls. Every pull costs you the chance to have pulled a different lever , so every pull is two bets at once: a bet on <em>winning now</em>, and a bet on <em>learning something useful for later</em>.</p>
 
-        <p>Play it too safe &mdash; keep yanking the first machine that pays &mdash; and you may never discover the one down the row that pays twice as often. Play it too curious &mdash; sample everything, forever &mdash; and you spend your whole bankroll gathering data you never cash in on.</p>
+        <p>Play it too safe, keep yanking the first machine that pays , and you may never discover the one down the row that pays twice as often. Play it too curious , sample everything, forever , and you spend your whole bankroll gathering data you never cash in on.</p>
 
-        <p>That tension has a name: the <strong>exploration&ndash;exploitation tradeoff</strong>. And the slot machines have a name too &mdash; the <strong>multi-armed bandit</strong>. It looks like a toy. It is not. The same problem sits underneath A/B testing, ad allocation, recommender systems, clinical trial design, network routing, and &mdash; lately &mdash; how large language models get evaluated and routed in production.</p>
+        <p>That tension has a name: the <strong>exploration&ndash;exploitation tradeoff</strong>. And the slot machines have a name too , the <strong>multi-armed bandit</strong>. It looks like a toy. It is not. The same problem sits underneath A/B testing, ad allocation, recommender systems, clinical trial design, network routing, and , lately , how large language models get evaluated and routed in production.</p>
 
-        <p>If you take one idea from this post, take this one: <strong>how you spend your exploration budget &mdash; the tuning, the initialization, the fit to the problem in front of you &mdash; matters more than owning a theorem that says you spent it optimally.</strong> We&rsquo;ll build intuition, meet the classic algorithms, and run a clean head-to-head whose result genuinely surprised the field: <strong>the simplest heuristics in the room routinely beat the algorithm with the Fields-medal-grade theory behind it.</strong> Every number and figure below comes from a small simulation you can reproduce; the code ships alongside this post.</p>
+        <p>If you take one idea from this post, take this one: <strong>how you spend your exploration budget , the tuning, the initialization, the fit to the problem in front of you , matters more than owning a theorem that says you spent it optimally.</strong> We&rsquo;ll build intuition, meet the classic algorithms, and run a clean head-to-head whose result genuinely surprised the field: <strong>the simplest heuristics in the room routinely beat the algorithm with the Fields-medal-grade theory behind it.</strong> Every number and figure below comes from a small simulation you can reproduce; the code ships alongside this post.</p>
 
         <h2>1. The setup: a row of unknown odds</h2>
 
-        <p>Formally, a stochastic bandit is a set of $K$ arms. Arm $i$ has a reward distribution $D_i$ with an unknown mean $\mu_i$. At each turn $t = 1, 2, \dots$ you choose an arm $j(t)$ and receive a random reward $r(t) \sim D_{j(t)}$. That&rsquo;s the whole game. No state, no chess board, no opponent &mdash; just $K$ levers and the slow accumulation of evidence about which one is best.</p>
+        <p>Formally, a stochastic bandit is a set of $K$ arms. Arm $i$ has a reward distribution $D_i$ with an unknown mean $\mu_i$. At each turn $t = 1, 2, \dots$ you choose an arm $j(t)$ and receive a random reward $r(t) \sim D_{j(t)}$. That&rsquo;s the whole game. No state, no chess board, no opponent , just $K$ levers and the slow accumulation of evidence about which one is best.</p>
 
         <figure>
             <img src="assets/bandit_fig1_setup.png" alt="Bar chart of the hidden true win rates of a 10-armed bandit. Arm #2 is highest at 0.90 (marked best), arm #6 close behind at 0.87, arm #7 near zero. The agent never sees this chart." loading="lazy">
-            <figcaption>Figure 1 &mdash; The world, as only the universe sees it. Each bar is an arm&rsquo;s true win rate $\mu_i$. The agent starts knowing none of these values and must reconstruct the ranking from noisy samples. Notice how close arm #2 (0.90) and arm #6 (0.87) are: distinguishing near-twins is exactly where the difficulty lives.</figcaption>
+            <figcaption>Figure 1 , The world, as only the universe sees it. Each bar is an arm&rsquo;s true win rate $\mu_i$. The agent starts knowing none of these values and must reconstruct the ranking from noisy samples. Notice how close arm #2 (0.90) and arm #6 (0.87) are: distinguishing near-twins is exactly where the difficulty lives.</figcaption>
         </figure>
 
         <p>The catch is that you only ever see <em>samples</em>, never the bars themselves. Pull arm #6 a few times and get unlucky, and it looks worse than arm #8. The whole challenge is statistical: separate signal from noise while the meter is running.</p>
 
         <h2>2. Keeping score: regret</h2>
 
-        <p>How do we grade a strategy? Not by raw reward &mdash; that depends on the luck of the draw &mdash; but by <strong>regret</strong>: how much worse you did than an oracle who knew the best arm $\mu^{*} = \max_i \mu_i$ from the start.</p>
+        <p>How do we grade a strategy? Not by raw reward , that depends on the luck of the draw , but by <strong>regret</strong>: how much worse you did than an oracle who knew the best arm $\mu^{*} = \max_i \mu_i$ from the start.</p>
 
         <p>$$R_T = T\mu^{*} - \sum_{t=1}^{T} \mu_{j(t)}$$</p>
 
         <p>Regret is the price of not knowing. Pull the best arm every time and your regret is zero. Every suboptimal pull adds its <em>gap</em> $\mu^{*} - \mu_{j(t)}$ to the tab.</p>
 
-        <p>Here&rsquo;s the first deep result, due to Lai and Robbins (1985): you <strong>cannot</strong> drive regret to zero, no matter how clever you are. Any algorithm that eventually finds the best arm must keep sampling the others often enough to stay sure &mdash; and that sampling has a floor that grows with time:</p>
+        <p>Here&rsquo;s the first deep result, due to Lai and Robbins (1985): you <strong>cannot</strong> drive regret to zero, no matter how clever you are. Any algorithm that eventually finds the best arm must keep sampling the others often enough to stay sure , and that sampling has a floor that grows with time:</p>
 
         <p>$$R_T = \Omega(\log T)$$</p>
 
         <blockquote>
-            <p>Regret grows at least logarithmically. An algorithm is said to <em>solve</em> the bandit problem if it matches this lower bound &mdash; that is, if $R_T = O(\log T)$.</p>
+            <p>Regret grows at least logarithmically. An algorithm is said to <em>solve</em> the bandit problem if it matches this lower bound , that is, if $R_T = O(\log T)$.</p>
         </blockquote>
 
         <p>This is a beautiful, slightly humbling fact. The best you can hope for is to be <em>wrong forever</em>, just increasingly rarely. The whole game is about how small you can make the constant in front of that logarithm.</p>
 
         <h3>Feel it yourself: take the levers</h3>
 
-        <p>Before we meet a single algorithm, play the bandit by hand. Below is a real, seeded bandit. Each arm pays out $1$ or $0$ at its own hidden rate; you get a fixed budget of pulls. Your <strong>regret</strong> &mdash; the gap to an oracle that always plays the best arm &mdash; ticks up every time you pull something less than the best. Try to keep it low. Then, when the round ends, see the true odds, and let a one-line $\epsilon$-greedy heuristic play the exact same board so you can compare.</p>
+        <p>Before we meet a single algorithm, play the bandit by hand. Below is a real, seeded bandit. Each arm pays out $1$ or $0$ at its own hidden rate; you get a fixed budget of pulls. Your <strong>regret</strong> , the gap to an oracle that always plays the best arm , ticks up every time you pull something less than the best. Try to keep it low. Then, when the round ends, see the true odds, and let the textbook algorithms ($\epsilon$-greedy and the &ldquo;optimal&rdquo; UCB1) play the exact same board so you can compare.</p>
 
         <section class="demo" id="bandit-game" aria-label="Pull-the-lever bandit game">
             <h3>Pull-the-lever bandit</h3>
-            <p class="lead">Click an arm to pull it. Each pull is one bet of your budget. You see only what you&rsquo;ve learned &mdash; each arm&rsquo;s observed win rate and how many times you&rsquo;ve tried it. The true rates stay hidden until the round ends.</p>
+            <p class="lead">Click an arm to pull it. Each pull is one bet of your budget. You see only what you&rsquo;ve learned , each arm&rsquo;s observed win rate and how many times you&rsquo;ve tried it. The true rates stay hidden until the round ends.</p>
 
             <div class="controls">
                 <div class="control">
                     <label for="bg-arms">Arms <span class="val" id="bg-arms-val" aria-live="polite" aria-atomic="true">6</span></label>
-                    <input type="range" id="bg-arms" min="4" max="10" step="1" value="6" aria-label="Number of arms, 4 to 10">
+                    <input type="range" id="bg-arms" min="4" max="15" step="1" value="6" aria-label="Number of arms, 4 to 15">
                 </div>
                 <div class="control">
                     <label for="bg-budget">Pull budget <span class="val" id="bg-budget-val" aria-live="polite" aria-atomic="true">40</span></label>
-                    <input type="range" id="bg-budget" min="20" max="100" step="5" value="40" aria-label="Pull budget, 20 to 100 pulls in steps of 5">
+                    <input type="range" id="bg-budget" min="20" max="500" step="5" value="40" aria-label="Pull budget, 20 to 500 pulls in steps of 5">
                 </div>
             </div>
 
@@ -447,6 +447,7 @@
             <div class="buttons">
                 <button id="bg-reveal" type="button">Reveal odds &amp; end round</button>
                 <button id="bg-eg" type="button" aria-label="Run an epsilon-greedy agent on this board">Let &epsilon;-greedy play this board</button>
+                <button id="bg-ucb" type="button" aria-label="Run a UCB1 agent on this board">Let UCB1 play this board</button>
                 <button class="primary" id="bg-new" type="button" aria-label="New board">&#x21bb; New board</button>
             </div>
 
@@ -465,11 +466,11 @@
             <li><strong>Pure exploration (&ldquo;random&rdquo;):</strong> ignore what you&rsquo;ve learned and pull uniformly at random.</li>
         </ul>
 
-        <p>Intuitively, both should be terrible &mdash; and they are, but for opposite reasons.</p>
+        <p>Intuitively, both should be terrible , and they are, but for opposite reasons.</p>
 
         <figure>
             <img src="assets/bandit_fig2_dilemma.png" alt="Two panels. Left: cumulative regret over 1000 pulls for random (gray) and greedy (orange) climbing nearly straight up, while epsilon-greedy (blue) bends toward flat. Right: percentage of optimal pulls; random and greedy stuck near 10%, epsilon-greedy rising to about 85%." loading="lazy">
-            <figcaption>Figure 2 &mdash; Both extremes fail. Random (gray) never commits, so its regret climbs in a straight line and it plays the best arm only ~10% of the time &mdash; exactly chance for ten arms. Pure greedy (orange) is barely better: it latches onto whichever arm happened to look good after a couple of lucky pulls and never reconsiders, getting stuck on the wrong arm in most runs. Add just a pinch of randomness &mdash; $\epsilon$-greedy (blue) &mdash; and everything changes: regret bends toward flat and the agent finds the best arm ~85% of the time.</figcaption>
+            <figcaption>Figure 2 , Both extremes fail. Random (gray) never commits, so its regret climbs in a straight line and it plays the best arm only ~10% of the time , exactly chance for ten arms. Pure greedy (orange) is barely better: it latches onto whichever arm happened to look good after a couple of lucky pulls and never reconsiders, getting stuck on the wrong arm in most runs. Add just a pinch of randomness , $\epsilon$-greedy (blue) , and everything changes: regret bends toward flat and the agent finds the best arm ~85% of the time.</figcaption>
         </figure>
 
         <p>That orange line is the one to sit with. Greedy isn&rsquo;t reckless; it&rsquo;s <em>reasonable</em>. It always does the locally optimal thing. And it ends up almost as bad as picking at random, because a single unlucky early sample of the true best arm is enough to make it write that arm off forever. <strong>Exploitation without exploration is just confident failure.</strong></p>
@@ -480,69 +481,69 @@
 
         <p>Every classic bandit algorithm is, at heart, a different answer to one question: <em>how should I inject exploration into an otherwise greedy policy?</em> Each maintains a running estimate $\hat{\mu}_i$ (call it $Q_i$) of every arm&rsquo;s value, updated incrementally after each pull.</p>
 
-        <p><strong>$\epsilon$-greedy &mdash; explore by coin flip.</strong> With probability $1-\epsilon$, pull the arm with the highest estimate; with probability $\epsilon$, pull a random arm.</p>
+        <p><strong>$\epsilon$-greedy , explore by coin flip.</strong> With probability $1-\epsilon$, pull the arm with the highest estimate; with probability $\epsilon$, pull a random arm.</p>
 
         <p>$$p_i(t{+}1) = \begin{cases} 1-\epsilon+\epsilon/K & \text{if } i = \arg\max_j \hat{\mu}_j(t)\\ \epsilon/K & \text{otherwise}\end{cases}$$</p>
 
-        <p>It&rsquo;s a thermostat with one dial. Crude &mdash; it explores <em>bad</em> arms exactly as often as <em>promising</em> ones &mdash; but shockingly effective, which is the whole punchline of this post.</p>
+        <p>It&rsquo;s a thermostat with one dial. Crude , it explores <em>bad</em> arms exactly as often as <em>promising</em> ones , but shockingly effective, which is the whole punchline of this post.</p>
 
-        <p><strong>Softmax (Boltzmann) &mdash; explore in proportion to promise.</strong> Instead of exploring uniformly, pick each arm with a probability that rises with its estimated value, sharpened by a temperature $\tau$:</p>
+        <p><strong>Softmax (Boltzmann) , explore in proportion to promise.</strong> Instead of exploring uniformly, pick each arm with a probability that rises with its estimated value, sharpened by a temperature $\tau$:</p>
 
         <p>$$p_i(t{+}1) = \frac{e^{\hat{\mu}_i(t)/\tau}}{\sum_{j=1}^{K} e^{\hat{\mu}_j(t)/\tau}}$$</p>
 
         <p>When $\tau \to 0$ it becomes pure greedy; when $\tau \to \infty$ it becomes pure random. In between, it spends its exploration budget on plausible contenders instead of wasting it on obvious duds.</p>
 
-        <p><strong>UCB1 &mdash; optimism in the face of uncertainty.</strong> Here&rsquo;s the elegant one. Don&rsquo;t explore randomly at all. Instead, give every arm a <em>confidence bonus</em> that&rsquo;s large when you&rsquo;ve pulled it rarely and shrinks as evidence accumulates, then act greedily on the inflated values:</p>
+        <p><strong>UCB1 , optimism in the face of uncertainty.</strong> Here&rsquo;s the elegant one. Don&rsquo;t explore randomly at all. Instead, give every arm a <em>confidence bonus</em> that&rsquo;s large when you&rsquo;ve pulled it rarely and shrinks as evidence accumulates, then act greedily on the inflated values:</p>
 
         <p>$$j(t) = \arg\max_{i} \left( \hat{\mu}_i + \sqrt{\frac{2\ln t}{n_i}} \right)$$</p>
 
-        <p>The square-root term is the genius. An arm you&rsquo;ve barely tried gets the benefit of the doubt; an arm you&rsquo;ve sampled a thousand times is judged on its merits. UCB1 comes with a <em>proof</em>: its regret is $O(\log t)$, matching the Lai&ndash;Robbins lower bound up to a constant. It is, in the formal sense, <strong>optimal</strong>. (Two other classics &mdash; <em>pursuit</em> and <em>reinforcement comparison</em> &mdash; round out the family, but they rarely outperform these three, so we&rsquo;ll keep the spotlight here.)</p>
+        <p>The square-root term is the genius. An arm you&rsquo;ve barely tried gets the benefit of the doubt; an arm you&rsquo;ve sampled a thousand times is judged on its merits. UCB1 comes with a <em>proof</em>: its regret is $O(\log t)$, matching the Lai&ndash;Robbins lower bound up to a constant. It is, in the formal sense, <strong>optimal</strong>. (Two other classics , <em>pursuit</em> and <em>reinforcement comparison</em> , round out the family, but they rarely outperform these three, so we&rsquo;ll keep the spotlight here.)</p>
 
         <p>So we have three strategies: two dead-simple heuristics with no guarantees, and one mathematically optimal algorithm. Which would you bet on?</p>
 
-        <h2>5. The head-to-head &mdash; and the surprise</h2>
+        <h2>5. The head-to-head , and the surprise</h2>
 
         <p>Let&rsquo;s race them on the exact bandit from Figure 1: ten arms, moderate noise, a thousand pulls, averaged over four thousand independent games. The result is the reason Kuleshov and Precup&rsquo;s empirical study is still cited a decade later.</p>
 
         <figure>
             <img src="assets/bandit_fig3_head_to_head.png" alt="Two panels for epsilon-greedy, softmax, and UCB1 under an optimistic start. Left: cumulative regret, with UCB1 (purple) highest at about 131, epsilon-greedy (blue) at about 47, softmax (orange) lowest at about 20. Right: optimal-arm rate, with epsilon-greedy near 84%, softmax near 73%, and UCB1 trailing at about 54%." loading="lazy">
-            <figcaption>Figure 3 &mdash; The &ldquo;optimal&rdquo; algorithm comes last. UCB1 (purple) accumulates roughly <strong>131</strong> total regret and is still pulling the best arm only ~54% of the time at the buzzer. Softmax (orange, ~<strong>20</strong>) and $\epsilon$-greedy (blue, ~<strong>47</strong>) &mdash; the two heuristics a first-year student could implement in an afternoon &mdash; leave it far behind.</figcaption>
+            <figcaption>Figure 3 , The &ldquo;optimal&rdquo; algorithm comes last. UCB1 (purple) accumulates roughly <strong>131</strong> total regret and is still pulling the best arm only ~54% of the time at the buzzer. Softmax (orange, ~<strong>20</strong>) and $\epsilon$-greedy (blue, ~<strong>47</strong>) , the two heuristics a first-year student could implement in an afternoon , leave it far behind.</figcaption>
         </figure>
 
         <p>Read that again. The algorithm with the regret bound, the optimism principle, the whole theoretical apparatus, loses to a coin flip. This isn&rsquo;t a fluke of one lucky seed; in the original study it held across nearly every problem instance the authors tried.</p>
 
-        <p>One disclosure before the victory lap, because it carries the rest of the post: all three contenders here run with a sensible, paper-faithful tuning &mdash; and that includes an <em>optimistic start</em>, where every arm&rsquo;s estimate is initialized high so the agent is nudged to taste each one before committing. Hold onto that detail. It is doing quiet work for the heuristics, and in &sect;6 we&rsquo;ll flip it off and watch this very leaderboard rearrange itself. For now the headline stands: with reasonable tuning, the two heuristics leave the provably-optimal algorithm far behind.</p>
+        <p>One disclosure before the victory lap, because it carries the rest of the post: all three contenders here run with a sensible, paper-faithful tuning , and that includes an <em>optimistic start</em>, where every arm&rsquo;s estimate is initialized high so the agent is nudged to taste each one before committing. Hold onto that detail. It is doing quiet work for the heuristics, and in &sect;6 we&rsquo;ll flip it off and watch this very leaderboard rearrange itself. For now the headline stands: with reasonable tuning, the two heuristics leave the provably-optimal algorithm far behind.</p>
 
         <blockquote>
             <p>Simple heuristics such as $\epsilon$-greedy and Boltzmann exploration outperform theoretically sound algorithms on most settings by a significant margin.</p>
-            <cite>&mdash; Kuleshov &amp; Precup, <em>Algorithms for the Multi-Armed Bandit Problem</em></cite>
+            <cite>, Kuleshov &amp; Precup, <em>Algorithms for the Multi-Armed Bandit Problem</em></cite>
         </blockquote>
 
-        <p>Why does the optimal algorithm underperform? Because &ldquo;optimal&rdquo; is an <strong>asymptotic, worst-case</strong> statement. UCB1 is built to never be badly wrong <em>in the limit, against an adversarial problem</em>. Guaranteeing that requires it to keep probing arms long after a pragmatic gambler would have moved on &mdash; its confidence bonus fades only as $\sqrt{\ln t / n_i}$, so with ten arms it is still dutifully re-checking the losers at pull 1,000. The simple heuristics make no such promise and, freed from it, just go cash in.</p>
+        <p>Why does the optimal algorithm underperform? Because &ldquo;optimal&rdquo; is an <strong>asymptotic, worst-case</strong> statement. UCB1 is built to never be badly wrong <em>in the limit, against an adversarial problem</em>. Guaranteeing that requires it to keep probing arms long after a pragmatic gambler would have moved on , its confidence bonus fades only as $\sqrt{\ln t / n_i}$, so with ten arms it is still dutifully re-checking the losers at pull 1,000. The simple heuristics make no such promise and, freed from it, just go cash in.</p>
 
-        <p>There&rsquo;s a subtlety worth savoring in the right-hand panel. <strong>Softmax wins on regret but $\epsilon$-greedy wins on hit-rate.</strong> That&rsquo;s not a contradiction: $\epsilon$-greedy&rsquo;s fixed 10% random exploration occasionally pulls genuinely awful arms (raising regret) but relentlessly hammers the single best arm the rest of the time (raising hit-rate). Softmax almost never touches a terrible arm, but it keeps splitting its bets among the top two or three look-alikes. Which one is &ldquo;better&rdquo; depends entirely on whether your application is punished by <em>bad</em> choices or by <em>non-best</em> choices &mdash; a distinction the single word &ldquo;regret&rdquo; quietly hides.</p>
+        <p>There&rsquo;s a subtlety worth savoring in the right-hand panel. <strong>Softmax wins on regret but $\epsilon$-greedy wins on hit-rate.</strong> That&rsquo;s not a contradiction: $\epsilon$-greedy&rsquo;s fixed 10% random exploration occasionally pulls genuinely awful arms (raising regret) but relentlessly hammers the single best arm the rest of the time (raising hit-rate). Softmax almost never touches a terrible arm, but it keeps splitting its bets among the top two or three look-alikes. Which one is &ldquo;better&rdquo; depends entirely on whether your application is punished by <em>bad</em> choices or by <em>non-best</em> choices , a distinction the single word &ldquo;regret&rdquo; quietly hides.</p>
 
         <h2>6. The twist: configuration is king</h2>
 
-        <p>If the first finding dents your faith in theory, the second should reshape how you <em>run experiments at all</em>. Watch what happens when we change exactly one thing &mdash; the value each arm is assigned <em>before any data arrives</em>. Standard practice starts every estimate at 0. &ldquo;Optimistic initialization&rdquo; starts them all high (say, 1.0), so that every untried arm looks irresistible and the agent is <em>forced</em> to taste each one before settling.</p>
+        <p>If the first finding dents your faith in theory, the second should reshape how you <em>run experiments at all</em>. Watch what happens when we change exactly one thing , the value each arm is assigned <em>before any data arrives</em>. Standard practice starts every estimate at 0. &ldquo;Optimistic initialization&rdquo; starts them all high (say, 1.0), so that every untried arm looks irresistible and the agent is <em>forced</em> to taste each one before settling.</p>
 
         <figure>
             <img src="assets/bandit_fig4_scoreboard.png" alt="Grouped bar chart of total regret for greedy, epsilon-greedy, softmax, and UCB1 under standard start (gray) versus optimistic start (blue). Greedy drops from 384 to 12, softmax from 212 to 20, epsilon-greedy moves only 59 to 47, and UCB1 stays at 131 in both." loading="lazy">
-            <figcaption>Figure 4 &mdash; One knob, total reshuffle. Flipping initialization from standard (gray) to optimistic (blue) transforms the leaderboard. Pure greedy plunges from a hopeless <strong>384</strong> to a chart-topping <strong>12</strong> &mdash; optimism alone does all of its exploring for it. Softmax falls from <strong>212</strong> to <strong>20</strong>. Meanwhile $\epsilon$-greedy barely moves (<strong>59 &rarr; 47</strong>), and UCB1 sits unchanged at <strong>131</strong>, indifferent to a knob it doesn&rsquo;t use.</figcaption>
+            <figcaption>Figure 4 , One knob, total reshuffle. Flipping initialization from standard (gray) to optimistic (blue) transforms the leaderboard. Pure greedy plunges from a hopeless <strong>384</strong> to a chart-topping <strong>12</strong> , optimism alone does all of its exploring for it. Softmax falls from <strong>212</strong> to <strong>20</strong>. Meanwhile $\epsilon$-greedy barely moves (<strong>59 &rarr; 47</strong>), and UCB1 sits unchanged at <strong>131</strong>, indifferent to a knob it doesn&rsquo;t use.</figcaption>
         </figure>
 
-        <p>This is the quietly radical part. The &ldquo;best algorithm&rdquo; is not a property of the algorithm. It&rsquo;s a property of the algorithm <em>plus its tuning plus its initialization plus the specific problem.</em> Optimistic initialization turns naive greedy &mdash; the strategy we just watched fail in Figure 2 &mdash; into the single best performer on the board, because a rosy starting estimate is itself a form of built-in exploration. Change the knob, change the winner. (And notice: this is the same knob the Figure 3 contenders were quietly leaning on. Take it away and softmax&rsquo;s ~20 balloons to 212 &mdash; suddenly <em>worse</em> than the &ldquo;optimal&rdquo; UCB1 it was beating.)</p>
+        <p>This is the quietly radical part. The &ldquo;best algorithm&rdquo; is not a property of the algorithm. It&rsquo;s a property of the algorithm <em>plus its tuning plus its initialization plus the specific problem.</em> Optimistic initialization turns naive greedy , the strategy we just watched fail in Figure 2 , into the single best performer on the board, because a rosy starting estimate is itself a form of built-in exploration. Change the knob, change the winner. (And notice: this is the same knob the Figure 3 contenders were quietly leaning on. Take it away and softmax&rsquo;s ~20 balloons to 212 , suddenly <em>worse</em> than the &ldquo;optimal&rdquo; UCB1 it was beating.)</p>
 
         <blockquote>
-            <p>The average increase in total regret for an incorrectly tuned algorithm was roughly 20% &mdash; and a parameter value optimal on one bandit instance could suddenly become one of the worst after increasing the reward variance by a single notch.</p>
-            <cite>&mdash; Kuleshov &amp; Precup</cite>
+            <p>The average increase in total regret for an incorrectly tuned algorithm was roughly 20% , and a parameter value optimal on one bandit instance could suddenly become one of the worst after increasing the reward variance by a single notch.</p>
+            <cite>, Kuleshov &amp; Precup</cite>
         </blockquote>
 
-        <p>The practical lesson is uncomfortable for anyone who has ever read one benchmark table and picked the top row: <strong>a bandit leaderboard tells you almost nothing unless every contender was tuned for the specific problem you actually face.</strong> $\epsilon$-greedy&rsquo;s real superpower in Figure 4 isn&rsquo;t that it wins &mdash; it&rsquo;s that it&rsquo;s <em>robust</em>, landing near the front whether you tune it carefully or not.</p>
+        <p>The practical lesson is uncomfortable for anyone who has ever read one benchmark table and picked the top row: <strong>a bandit leaderboard tells you almost nothing unless every contender was tuned for the specific problem you actually face.</strong> $\epsilon$-greedy&rsquo;s real superpower in Figure 4 isn&rsquo;t that it wins , it&rsquo;s that it&rsquo;s <em>robust</em>, landing near the front whether you tune it carefully or not.</p>
 
         <h2>7. What actually moves the needle</h2>
 
-        <p>The original study swept across many problem variants and asked which characteristics genuinely change the <em>ranking</em> of algorithms. The answer was bracingly short: only two things matter &mdash; <strong>the number of arms</strong> and <strong>the variance of the rewards.</strong> The shape of the reward distribution (normal, uniform, skewed, heavy-tailed) barely mattered at all; runs with wildly different distributions but matched means and variances produced near-identical rankings.</p>
+        <p>The original study swept across many problem variants and asked which characteristics genuinely change the <em>ranking</em> of algorithms. The answer was bracingly short: only two things matter , <strong>the number of arms</strong> and <strong>the variance of the rewards.</strong> The shape of the reward distribution (normal, uniform, skewed, heavy-tailed) barely mattered at all; runs with wildly different distributions but matched means and variances produced near-identical rankings.</p>
 
         <p>That&rsquo;s a gift to anyone designing experiments. It means you can characterize a new strategy on a small, well-chosen grid of (arm count &times; variance) settings and trust that the picture generalizes. It also gently warns theorists that chasing ever-tighter bounds based on higher moments of the reward distribution may be polishing a lever that isn&rsquo;t connected to anything.</p>
 
@@ -551,35 +552,35 @@
         <p>The reason this toy refuses to stay a toy is that <em>adaptive allocation under uncertainty</em> is a universal shape. A few places the exact same math shows up:</p>
 
         <ul>
-            <li><strong>Clinical trials.</strong> This was the original motivation &mdash; Robbins framed it in 1952, and Gittins later called trial design the &ldquo;chief practical motivation&rdquo; for the whole field. The intuition is visceral: every patient assigned to the inferior treatment is a regret term with a human cost. Kuleshov and Precup re-ran a real 2001&ndash;2002 opioid-treatment trial as a simulation and found that a bandit-driven adaptive design would have <strong>successfully treated at least 50% more patients</strong>, with fewer adverse effects and better retention &mdash; while <em>still</em> identifying the better drug with high statistical confidence. The explore&ndash;exploit tradeoff, here, is literally measured in lives.</li>
+            <li><strong>Clinical trials.</strong> This was the original motivation , Robbins framed it in 1952, and Gittins later called trial design the &ldquo;chief practical motivation&rdquo; for the whole field. The intuition is visceral: every patient assigned to the inferior treatment is a regret term with a human cost. Kuleshov and Precup re-ran a real 2001&ndash;2002 opioid-treatment trial as a simulation and found that a bandit-driven adaptive design would have <strong>successfully treated at least 50% more patients</strong>, with fewer adverse effects and better retention , while <em>still</em> identifying the better drug with high statistical confidence. The explore&ndash;exploit tradeoff, here, is literally measured in lives.</li>
             <li><strong>A/B testing and ads.</strong> Classic A/B testing is pure exploration: split traffic 50/50, wait, then switch. A bandit shifts traffic toward the winner <em>as it learns</em>, cutting the cost of running the test. It also sidesteps the &ldquo;peeking&rdquo; problem that plagues fixed-horizon significance testing.</li>
             <li><strong>Recommender systems.</strong> Every &ldquo;did you like this?&rdquo; is a pull. Contextual bandits power feed ranking and content selection on systems large enough that a 1% improvement is a real number.</li>
-            <li><strong>LLMs, circa now.</strong> This is the live frontier. Bandit strategies are being used to route queries among competing models, to allocate scarce human annotation in RLHF, and to run adaptive evaluations &mdash; one 2025 line of work reports identifying the best LLM variant <strong>~37% faster</strong> than naive A/B testing. <em>Dueling bandits</em>, which learn from pairwise preferences instead of absolute rewards, map almost perfectly onto preference-based alignment.</li>
+            <li><strong>LLMs, circa now.</strong> This is the live frontier. Bandit strategies are being used to route queries among competing models, to allocate scarce human annotation in RLHF, and to run adaptive evaluations , one 2025 line of work reports identifying the best LLM variant <strong>~37% faster</strong> than naive A/B testing. <em>Dueling bandits</em>, which learn from pairwise preferences instead of absolute rewards, map almost perfectly onto preference-based alignment.</li>
         </ul>
 
-        <p>And the algorithm most practitioners reach for today isn&rsquo;t even in our race. <strong>Thompson sampling</strong> &mdash; keep a Bayesian posterior over each arm&rsquo;s value, sample from it, and play the arm that wins the sample &mdash; tends to match or beat UCB while needing almost no tuning. It&rsquo;s the natural next chapter, and it inherits the same moral as everything above: a little principled randomness goes a long way.</p>
+        <p>And the algorithm most practitioners reach for today isn&rsquo;t even in our race. <strong>Thompson sampling</strong> , keep a Bayesian posterior over each arm&rsquo;s value, sample from it, and play the arm that wins the sample , tends to match or beat UCB while needing almost no tuning. It&rsquo;s the natural next chapter, and it inherits the same moral as everything above: a little principled randomness goes a long way.</p>
 
         <h2>9. The takeaway</h2>
 
-        <p>Strip away the equations and the multi-armed bandit leaves you with a single, portable idea: <strong>information has value, and you have to pay for it in foregone reward.</strong> Every adaptive system &mdash; a trial, a recommender, an RLHF loop, arguably a career &mdash; is constantly deciding how much to spend.</p>
+        <p>Strip away the equations and the multi-armed bandit leaves you with a single, portable idea: <strong>information has value, and you have to pay for it in foregone reward.</strong> Every adaptive system , a trial, a recommender, an RLHF loop, arguably a career , is constantly deciding how much to spend.</p>
 
         <p>The empirical surprise is that <em>how</em> you spend it matters more than having a theorem that says you spent it optimally. A dead-simple heuristic, tuned for the problem in front of it, repeatedly outran the algorithm with the better r&eacute;sum&eacute;. Theory tells you what&rsquo;s true in the limit; the limit is not where you live.</p>
 
-        <p>So here&rsquo;s the question to carry out of the casino: in your own systems, how much are you <em>currently</em> spending on exploration &mdash; and did you choose that number, or did it just default to zero?</p>
+        <p>So here&rsquo;s the question to carry out of the casino: in your own systems, how much are you <em>currently</em> spending on exploration , and did you choose that number, or did it just default to zero?</p>
 
         <h3>Figures &amp; reproducibility</h3>
 
-        <p>All figures were generated from a vectorized NumPy simulation (10 Gaussian arms, reward standard deviation 0.1, horizon 1,000 pulls, averaged over 4,000 independent runs, seed 2024). The full generator ships with this post as <code>blog/assets/bandit_figures.py</code> &mdash; run it, change <code>K</code> and <code>sigma</code>, and watch the leaderboard rearrange itself. The interactive game above runs the same logic, live, in your browser.</p>
+        <p>All figures were generated from a vectorized NumPy simulation (10 Gaussian arms, reward standard deviation 0.1, horizon 1,000 pulls, averaged over 4,000 independent runs, seed 2024). The full generator ships with this post as <code>blog/assets/bandit_figures.py</code> , run it, change <code>K</code> and <code>sigma</code>, and watch the leaderboard rearrange itself. The interactive game above runs the same logic, live, in your browser.</p>
 
         <div class="references">
             <h2>Sources &amp; further reading</h2>
             <ol>
-                <li>Kuleshov, V. &amp; Precup, D. (2014). <em>Algorithms for the Multi-Armed Bandit Problem.</em> <a href="https://arxiv.org/abs/1402.6028" target="_blank" rel="noopener noreferrer">arXiv:1402.6028</a> &mdash; the source paper for this post.</li>
-                <li>Lai, T. L. &amp; Robbins, H. (1985). <em>Asymptotically efficient adaptive allocation rules.</em> Advances in Applied Mathematics &mdash; the $\Omega(\log T)$ lower bound.</li>
-                <li>Auer, P., Cesa-Bianchi, N. &amp; Fischer, P. (2002). <em>Finite-time analysis of the multiarmed bandit problem.</em> Machine Learning &mdash; UCB1.</li>
-                <li>Sutton, R. &amp; Barto, A. <em>Reinforcement Learning: An Introduction.</em> &mdash; the canonical reference for $\epsilon$-greedy, softmax, and the explore&ndash;exploit framing.</li>
-                <li><em>Multi-Armed Bandits Meet Large Language Models</em> (2025). <a href="https://arxiv.org/abs/2505.13355" target="_blank" rel="noopener noreferrer">arXiv:2505.13355</a> &mdash; survey of the modern LLM/RLHF connection.</li>
-                <li><a href="https://www.inwt-statistics.com/read-blog/multi-armed-bandits-as-an-a-b-testing-solution.html" target="_blank" rel="noopener noreferrer">Multi-Armed Bandits as an A/B Testing Solution</a> &mdash; practitioner framing.</li>
+                <li>Kuleshov, V. &amp; Precup, D. (2014). <em>Algorithms for the Multi-Armed Bandit Problem.</em> <a href="https://arxiv.org/abs/1402.6028" target="_blank" rel="noopener noreferrer">arXiv:1402.6028</a> , the source paper for this post.</li>
+                <li>Lai, T. L. &amp; Robbins, H. (1985). <em>Asymptotically efficient adaptive allocation rules.</em> Advances in Applied Mathematics , the $\Omega(\log T)$ lower bound.</li>
+                <li>Auer, P., Cesa-Bianchi, N. &amp; Fischer, P. (2002). <em>Finite-time analysis of the multiarmed bandit problem.</em> Machine Learning , UCB1.</li>
+                <li>Sutton, R. &amp; Barto, A. <em>Reinforcement Learning: An Introduction.</em> , the canonical reference for $\epsilon$-greedy, softmax, and the explore&ndash;exploit framing.</li>
+                <li><em>Multi-Armed Bandits Meet Large Language Models</em> (2025). <a href="https://arxiv.org/abs/2505.13355" target="_blank" rel="noopener noreferrer">arXiv:2505.13355</a> , survey of the modern LLM/RLHF connection.</li>
+                <li><a href="https://www.inwt-statistics.com/read-blog/multi-armed-bandits-as-an-a-b-testing-solution.html" target="_blank" rel="noopener noreferrer">Multi-Armed Bandits as an A/B Testing Solution</a> , practitioner framing.</li>
             </ol>
         </div>
 
@@ -600,7 +601,7 @@
             const armsVal = $('bg-arms-val'), budgetVal = $('bg-budget-val');
             const leversEl = $('bg-levers'), verdictEl = $('bg-verdict');
             const pullsLeftEl = $('bg-pulls-left'), rewardEl = $('bg-reward'), regretEl = $('bg-regret');
-            const btnNew = $('bg-new'), btnReveal = $('bg-reveal'), btnEg = $('bg-eg');
+            const btnNew = $('bg-new'), btnReveal = $('bg-reveal'), btnEg = $('bg-eg'), btnUcb = $('bg-ucb');
             const egResultEl = $('bg-eg-result');
             const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
@@ -614,6 +615,7 @@
             let seed = 1;
             let K, budget, p, pulls, wins, rng, used, reward, regret, bestArm, over, revealed;
             let pendingFlashes = [];
+            let algoResults = {};
 
             const newBoard = (s) => {
                 pendingFlashes.forEach(clearTimeout);
@@ -622,13 +624,26 @@
                 budget = parseInt(budgetCtl.value, 10);
                 if (s !== undefined) seed = s;
                 rng = mulberry32(seed);
-                p = [];
-                for (let i = 0; i < K; i++) p.push(rng());
+                // Hidden rates with a deliberately tight top cluster: the best few arms sit
+                // within a small gap, so they are hard to tell apart from a handful of noisy
+                // pulls (the near-twins problem from Figure 1). Distractors sit clearly lower,
+                // so the difficulty is concentrated at the top, where a no-strategy human gets
+                // fooled but a systematic algorithm, given enough samples, still pulls ahead.
+                const ceiling = 0.72 + rng() * 0.14;             // best true rate in [0.72, 0.86]
+                const leaders = Math.min(3, K);                  // near-twin contenders at the top
+                p = [ceiling];
+                for (let i = 1; i < leaders; i++) p.push(ceiling - (0.01 + rng() * 0.05));
+                for (let i = leaders; i < K; i++) p.push(0.15 + rng() * 0.45);
+                for (let i = p.length - 1; i > 0; i--) {         // Fisher-Yates shuffle
+                    const j = Math.floor(rng() * (i + 1));
+                    const tmp = p[i]; p[i] = p[j]; p[j] = tmp;
+                }
                 bestArm = 0;
                 for (let i = 1; i < K; i++) if (p[i] > p[bestArm]) bestArm = i;
                 pulls = new Array(K).fill(0);
                 wins = new Array(K).fill(0);
                 used = 0; reward = 0; regret = 0; over = false; revealed = false;
+                algoResults = {};
                 egResultEl.hidden = true; egResultEl.innerHTML = '';
                 buildLevers();
                 updateStats();
@@ -654,7 +669,7 @@
                     const b = $('lv-' + i);
                     if (!b) continue;
                     const rateLabel = pulls[i] > 0 ? (wins[i] / pulls[i]).toFixed(2) : 'untried';
-                    const rate = pulls[i] > 0 ? (wins[i] / pulls[i]).toFixed(2) : '&mdash;';
+                    const rate = pulls[i] > 0 ? (wins[i] / pulls[i]).toFixed(2) : ',';
                     let html = '<div class="lv-idx">#' + (i + 1) + '</div>'
                         + '<div class="lv-rate">' + rate + '</div>'
                         + '<div class="lv-count">' + pulls[i] + ' pull' + (pulls[i] === 1 ? '' : 's') + '</div>';
@@ -704,7 +719,7 @@
                 over = true; revealed = true;
                 renderLevers();
                 if (used === 0) {
-                    setVerdict('Round ended before a single pull &mdash; the best arm was #' + (bestArm + 1)
+                    setVerdict('Round ended before a single pull , the best arm was #' + (bestArm + 1)
                         + ' at rate ' + p[bestArm].toFixed(2) + '. Try a board: explore a little, then commit.', 'mid');
                     return;
                 }
@@ -713,12 +728,12 @@
                 const fracBest = onBest / used;
                 let msg, cls;
                 if (onBest === 0) {
-                    msg = 'You never pulled #' + (bestArm + 1) + ' &mdash; the real best arm (true rate '
+                    msg = 'You never pulled #' + (bestArm + 1) + ' , the real best arm (true rate '
                         + p[bestArm].toFixed(2) + '). Textbook <strong>under-exploration</strong>: you committed before you had seen the whole row. Final regret ' + regret.toFixed(1) + '.';
                     cls = 'low';
                 } else if (fracBest >= 0.6) {
                     msg = 'You found #' + (bestArm + 1) + ' and rode it (' + Math.round(fracBest * 100)
-                        + '% of your pulls). That is the exploit half done right &mdash; your regret ' + regret.toFixed(1) + ' is near the floor.';
+                        + '% of your pulls). That is the exploit half done right , your regret ' + regret.toFixed(1) + ' is near the floor.';
                     cls = 'high';
                 } else if (tried >= K && fracBest < 0.35) {
                     msg = 'You sampled all ' + K + ' arms but never committed hard to #' + (bestArm + 1)
@@ -727,32 +742,48 @@
                 } else {
                     msg = 'A mixed run: ' + tried + '/' + K + ' arms tried, ' + Math.round(fracBest * 100)
                         + '% of pulls on the best arm (#' + (bestArm + 1) + '). Final regret ' + regret.toFixed(1)
-                        + ' &mdash; somewhere between too curious and too committed.';
+                        + ' , somewhere between too curious and too committed.';
                     cls = 'mid';
                 }
                 setVerdict(msg, cls);
+                if (Object.keys(algoResults).length) renderAlgoResults();
             };
 
-            // epsilon-greedy on the SAME board (same hidden rates), averaged over many runs.
-            const runEpsilonGreedy = (eps, trials) => {
+            // Run an algorithm (epsilon-greedy or UCB1) on the SAME board (same hidden
+            // rates), averaged over many runs to give a stable expected regret.
+            const runAlgo = (kind, trials) => {
                 let total = 0;
+                const salt = kind === 'ucb1' ? 0x68bc21eb : 0x9e3779b9;
                 for (let r = 0; r < trials; r++) {
-                    const er = mulberry32(((seed ^ 0x9e3779b9) + r * 0x85ebca6b) >>> 0);
+                    const ar = mulberry32(((seed ^ salt) + r * 0x85ebca6b) >>> 0);
                     const Q = new Array(K).fill(0), n = new Array(K).fill(0);
                     let reg = 0;
                     for (let t = 0; t < budget; t++) {
                         let a;
-                        if (er() < eps) {
-                            a = Math.floor(er() * K);
-                        } else {
-                            let bv = -Infinity, bi = 0;
-                            for (let i = 0; i < K; i++) {
-                                const q = Q[i] + 1e-9 * er();
-                                if (q > bv) { bv = q; bi = i; }
+                        if (kind === 'ucb1') {
+                            if (t < K) {
+                                a = t;                               // seed each arm once
+                            } else {
+                                let bv = -Infinity, bi = 0;
+                                for (let i = 0; i < K; i++) {
+                                    const u = Q[i] + Math.sqrt(2 * Math.log(t + 1) / n[i]);
+                                    if (u > bv) { bv = u; bi = i; }
+                                }
+                                a = bi;
                             }
-                            a = bi;
+                        } else {
+                            if (ar() < 0.1) {
+                                a = Math.floor(ar() * K);
+                            } else {
+                                let bv = -Infinity, bi = 0;
+                                for (let i = 0; i < K; i++) {
+                                    const q = Q[i] + 1e-9 * ar();
+                                    if (q > bv) { bv = q; bi = i; }
+                                }
+                                a = bi;
+                            }
                         }
-                        const out = er() < p[a] ? 1 : 0;
+                        const out = ar() < p[a] ? 1 : 0;
                         n[a]++; Q[a] += (out - Q[a]) / n[a];
                         reg += (p[bestArm] - p[a]);
                     }
@@ -761,17 +792,36 @@
                 return total / trials;
             };
 
-            const showEpsilonGreedy = () => {
-                const egReg = runEpsilonGreedy(0.1, 400);
-                let line = '<strong>&epsilon;-greedy (&epsilon;=0.1)</strong> averages regret &asymp; '
-                    + egReg.toFixed(1) + ' on this exact board over ' + budget + ' pulls.';
+            const ALGO_LABEL = { epsilon: '&epsilon;-greedy (&epsilon;=0.1)', ucb1: 'UCB1' };
+            const ALGO_SHORT = { epsilon: '&epsilon;-greedy', ucb1: 'UCB1' };
+            const ALGO_ORDER = ['epsilon', 'ucb1'];
+            const joinList = (arr) => arr.length <= 1
+                ? (arr[0] || '')
+                : arr.slice(0, -1).join(', ') + ' and ' + arr[arr.length - 1];
+
+            const showAlgo = (kind) => {
+                algoResults[kind] = runAlgo(kind, 200);
+                renderAlgoResults();
+            };
+
+            const renderAlgoResults = () => {
+                const computed = ALGO_ORDER.filter((k) => algoResults[k] !== undefined);
+                if (!computed.length) { egResultEl.hidden = true; egResultEl.innerHTML = ''; return; }
+                const lines = computed.map((k) =>
+                    '<div><strong>' + ALGO_LABEL[k] + '</strong>: regret &asymp; '
+                    + algoResults[k].toFixed(1) + ' on this board over ' + budget + ' pulls.</div>');
                 if (over) {
-                    const verb = regret < egReg ? 'beat it' : (regret > egReg ? 'trailed it' : 'tied it');
-                    line += ' Your run: ' + regret.toFixed(1) + ' &mdash; you ' + verb + '.';
+                    const beat = computed.filter((k) => regret < algoResults[k]).map((k) => ALGO_SHORT[k]);
+                    const lost = computed.filter((k) => regret > algoResults[k]).map((k) => ALGO_SHORT[k]);
+                    let cmp = 'Your run: ' + regret.toFixed(1) + '.';
+                    if (beat.length) cmp += ' You beat ' + joinList(beat) + '.';
+                    if (lost.length) cmp += ' You trailed ' + joinList(lost) + '.';
+                    lines.push('<div style="margin-top:0.4rem;color:var(--text-secondary);">' + cmp + '</div>');
                 } else {
-                    line += ' Your run so far: ' + regret.toFixed(1) + ' after ' + used + ' pull' + (used === 1 ? '' : 's') + '.';
+                    lines.push('<div style="margin-top:0.4rem;color:var(--text-secondary);">Your run so far: '
+                        + regret.toFixed(1) + ' after ' + used + ' pull' + (used === 1 ? '' : 's') + '.</div>');
                 }
-                egResultEl.innerHTML = line;
+                egResultEl.innerHTML = lines.join('');
                 egResultEl.hidden = false;
             };
 
@@ -789,7 +839,8 @@
             budgetCtl.addEventListener('input', () => { syncLabels(); newBoard(); });
             btnNew.addEventListener('click', () => newBoard((Math.floor(Math.random() * 0x7fffffff)) + 1));
             btnReveal.addEventListener('click', () => { if (!over) endRound(false); });
-            btnEg.addEventListener('click', showEpsilonGreedy);
+            btnEg.addEventListener('click', () => showAlgo('epsilon'));
+            btnUcb.addEventListener('click', () => showAlgo('ucb1'));
 
             syncLabels();
             newBoard(1);

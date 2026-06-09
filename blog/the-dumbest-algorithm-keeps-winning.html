@@ -122,7 +122,7 @@
             margin: 0 0 1.25rem 1.5rem;
             color: var(--text-secondary);
         }
-        article li { margin-bottom: 0.5rem; }
+        article li { margin-bottom: 0.4rem; }
 
         article strong { color: var(--text-primary); }
         article em { color: var(--text-secondary); }
@@ -290,7 +290,7 @@
             font-size: 1.15rem; font-weight: 600; color: var(--text-primary);
             font-variant-numeric: tabular-nums; margin: 0.2rem 0 0.1rem;
         }
-        .demo .lever .lv-count { font-size: 0.7rem; color: var(--text-dim); }
+        .demo .lever .lv-count { font-size: 0.7rem; color: var(--text-muted); }
         .demo .lever .lv-true {
             font-size: 0.7rem; color: var(--accent-amber); margin-top: 0.25rem;
             border-top: 1px dashed var(--border); padding-top: 0.2rem;
@@ -418,12 +418,12 @@
 
             <div class="controls">
                 <div class="control">
-                    <label for="bg-arms">Arms <span class="val" id="bg-arms-val">6</span></label>
-                    <input type="range" id="bg-arms" min="4" max="10" step="1" value="6">
+                    <label for="bg-arms">Arms <span class="val" id="bg-arms-val" aria-live="polite" aria-atomic="true">6</span></label>
+                    <input type="range" id="bg-arms" min="4" max="10" step="1" value="6" aria-label="Number of arms, 4 to 10">
                 </div>
                 <div class="control">
-                    <label for="bg-budget">Pull budget <span class="val" id="bg-budget-val">40</span></label>
-                    <input type="range" id="bg-budget" min="20" max="100" step="5" value="40">
+                    <label for="bg-budget">Pull budget <span class="val" id="bg-budget-val" aria-live="polite" aria-atomic="true">40</span></label>
+                    <input type="range" id="bg-budget" min="20" max="100" step="5" value="40" aria-label="Pull budget, 20 to 100 pulls in steps of 5">
                 </div>
             </div>
 
@@ -446,12 +446,12 @@
 
             <div class="buttons">
                 <button id="bg-reveal" type="button">Reveal odds &amp; end round</button>
-                <button id="bg-eg" type="button">Let &epsilon;-greedy play this board</button>
-                <button class="primary" id="bg-new" type="button">&#x21bb; New board</button>
+                <button id="bg-eg" type="button" aria-label="Run an epsilon-greedy agent on this board">Let &epsilon;-greedy play this board</button>
+                <button class="primary" id="bg-new" type="button" aria-label="New board">&#x21bb; New board</button>
             </div>
 
             <div class="verdict" id="bg-verdict" role="status" aria-live="polite">Pull any arm. You have 40 pulls to keep your regret low.</div>
-            <div class="eg-result" id="bg-eg-result" hidden></div>
+            <div class="eg-result" id="bg-eg-result" role="status" aria-live="polite" hidden></div>
         </section>
 
         <p>Play it for a minute and the tradeoff stops being a phrase and starts being a feeling. Pound one arm that paid early and you risk never finding the better one two seats down. Spread your pulls evenly and you bleed regret on arms you already suspect are duds. Now let&rsquo;s see how the textbook algorithms make exactly this choice.</p>
@@ -613,8 +613,11 @@
 
             let seed = 1;
             let K, budget, p, pulls, wins, rng, used, reward, regret, bestArm, over, revealed;
+            let pendingFlashes = [];
 
             const newBoard = (s) => {
+                pendingFlashes.forEach(clearTimeout);
+                pendingFlashes = [];
                 K = parseInt(armsCtl.value, 10);
                 budget = parseInt(budgetCtl.value, 10);
                 if (s !== undefined) seed = s;
@@ -650,6 +653,7 @@
                 for (let i = 0; i < K; i++) {
                     const b = $('lv-' + i);
                     if (!b) continue;
+                    const rateLabel = pulls[i] > 0 ? (wins[i] / pulls[i]).toFixed(2) : 'untried';
                     const rate = pulls[i] > 0 ? (wins[i] / pulls[i]).toFixed(2) : '&mdash;';
                     let html = '<div class="lv-idx">#' + (i + 1) + '</div>'
                         + '<div class="lv-rate">' + rate + '</div>'
@@ -658,6 +662,9 @@
                         html += '<div class="lv-true">true ' + p[i].toFixed(2) + (i === bestArm ? ' &#9733;' : '') + '</div>';
                     }
                     b.innerHTML = html;
+                    b.setAttribute('aria-label', 'Pull arm ' + (i + 1) + ', observed rate ' + rateLabel
+                        + ', ' + pulls[i] + ' pull' + (pulls[i] === 1 ? '' : 's')
+                        + (revealed && i === bestArm ? ' (best arm)' : ''));
                     b.classList.toggle('best', revealed && i === bestArm);
                     b.disabled = over;
                 }
@@ -675,7 +682,11 @@
                 if (!b) return;
                 const cls = outcome ? 'flash-win' : 'flash-loss';
                 b.classList.add(cls);
-                setTimeout(() => b.classList.remove(cls), 320);
+                const id = setTimeout(() => {
+                    b.classList.remove(cls);
+                    pendingFlashes = pendingFlashes.filter((x) => x !== id);
+                }, 320);
+                pendingFlashes.push(id);
             };
 
             const pull = (i) => {

@@ -1,0 +1,777 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Is Attention Still All You Need? Eight Years of Rewriting One Layer | Daniel Gordon</title>
+    <meta name="description" content="A guided tour of the one layer that defines modern AI: five rewrites of the transformer attention layer&mdash;multi-head, sparse, rotary, grouped-query, and latent&mdash;with reproducible NumPy figures and an interactive self-attention visualizer you can type into.">
+    <meta property="og:title" content="Is Attention Still All You Need? Eight Years of Rewriting One Layer">
+    <meta property="og:description" content="The math, the intuition, and the engineering trade-offs behind the five rewrites of the attention layer that built, and keep rebuilding, every LLM.">
+    <meta property="og:type" content="article">
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" integrity="sha384-nB0miv6/jRmo5UMMR1wu3Gz6NLsoTkbqJghGIsx//Rlm+ZU03BU6SQNC66uf4l5+" crossorigin="anonymous">
+
+    <style>
+        :root {
+            --primary: #0f172a;
+            --secondary: #3b82f6;
+            --surface: #1e293b;
+            --border: #334155;
+            --text-primary: #f8fafc;
+            --text-secondary: #e2e8f0;
+            --text-muted: #94a3b8;
+            --text-dim: #64748b;
+            --accent-green: #22c55e;
+            --accent-red: #ef4444;
+            --accent-amber: #f59e0b;
+            --accent-purple: #a855f7;
+        }
+
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        html { scroll-behavior: smooth; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            line-height: 1.7;
+            color: var(--text-secondary);
+            background-color: var(--primary);
+        }
+
+        nav {
+            position: fixed;
+            top: 0; left: 0; right: 0; z-index: 100;
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 0.75rem 2rem;
+            background-color: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .nav-logo {
+            font-size: 1.25rem; font-weight: 700;
+            color: var(--text-primary); text-decoration: none; letter-spacing: 1px;
+        }
+
+        .back-link {
+            color: var(--text-muted); text-decoration: none;
+            font-size: 0.85rem; letter-spacing: 1px; text-transform: uppercase;
+            transition: color 0.2s ease;
+        }
+        .back-link:hover, .back-link:focus-visible { color: var(--secondary); }
+
+        article {
+            max-width: 780px;
+            margin: 0 auto;
+            padding: 7rem 2rem 4rem;
+        }
+
+        .post-meta {
+            display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: center;
+            margin-bottom: 1rem;
+            color: var(--text-dim);
+            font-size: 0.85rem;
+        }
+        .post-meta .dot { color: var(--text-dim); }
+        .post-meta .tag {
+            background-color: var(--surface);
+            color: var(--secondary);
+            padding: 0.2rem 0.7rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            border: 1px solid var(--border);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        article h1 {
+            font-size: 2.2rem; font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 1rem;
+            line-height: 1.25;
+            letter-spacing: -0.01em;
+        }
+
+        .deck {
+            font-size: 1.1rem;
+            color: var(--text-muted);
+            font-style: italic;
+            margin-bottom: 2rem;
+        }
+
+        article h2 {
+            font-size: 1.45rem; font-weight: 600;
+            color: var(--text-primary);
+            margin-top: 3rem; margin-bottom: 1rem;
+            line-height: 1.3;
+        }
+
+        article h3 {
+            font-size: 1.1rem; font-weight: 600;
+            color: var(--text-primary);
+            margin-top: 2rem; margin-bottom: 0.75rem;
+        }
+
+        article p {
+            margin-bottom: 1.25rem;
+            font-size: 1.02rem;
+        }
+
+        article a {
+            color: var(--secondary);
+            text-decoration: underline;
+            text-underline-offset: 2px;
+            text-decoration-thickness: 1px;
+        }
+        article a:hover, article a:focus-visible { color: #60a5fa; }
+
+        article ul, article ol {
+            margin: 0 0 1.25rem 1.5rem;
+            color: var(--text-secondary);
+        }
+        article li { margin-bottom: 0.4rem; }
+
+        article strong { color: var(--text-primary); }
+        article em { color: var(--text-secondary); }
+
+        article blockquote {
+            border-left: 3px solid var(--secondary);
+            padding: 0.75rem 1.25rem;
+            margin: 1.5rem 0;
+            background-color: var(--surface);
+            color: var(--text-secondary);
+            border-radius: 0 6px 6px 0;
+        }
+        article blockquote p:last-child { margin-bottom: 0; }
+        article blockquote cite {
+            display: block;
+            margin-top: 0.5rem;
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            font-style: normal;
+        }
+
+        /* table (the map of rewrites) */
+        .table-wrap { overflow-x: auto; margin: 1.75rem 0; }
+        article table {
+            border-collapse: collapse;
+            width: 100%;
+            font-size: 0.9rem;
+            min-width: 640px;
+        }
+        article th, article td {
+            border: 1px solid var(--border);
+            padding: 0.55rem 0.7rem;
+            text-align: left;
+            vertical-align: top;
+        }
+        article thead th {
+            background-color: var(--surface);
+            color: var(--text-primary);
+            font-weight: 600;
+        }
+        article tbody tr:nth-child(even) { background-color: rgba(30, 41, 59, 0.45); }
+
+        figure {
+            margin: 2.5rem 0;
+            text-align: center;
+        }
+        figure img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 8px;
+            background-color: var(--surface);
+            border: 1px solid var(--border);
+        }
+        figcaption {
+            margin-top: 0.75rem;
+            color: var(--text-muted);
+            font-size: 0.85rem;
+            font-style: italic;
+            text-align: left;
+        }
+        figure.hero { margin: 1.5rem 0 2.5rem; }
+        figure.hero img { border: 1px solid var(--border); }
+
+        .references {
+            margin-top: 3rem;
+            padding-top: 2rem;
+            border-top: 1px solid var(--border);
+            font-size: 0.92rem;
+        }
+        .references h2 { margin-top: 0; }
+        .references ol {
+            list-style: decimal;
+            color: var(--text-muted);
+        }
+        .references li { margin-bottom: 0.6rem; }
+
+        footer {
+            text-align: center;
+            padding: 2rem;
+            color: var(--text-dim);
+            font-size: 0.85rem;
+            border-top: 1px solid var(--border);
+        }
+
+        *:focus-visible {
+            outline: 2px solid var(--secondary);
+            outline-offset: 2px;
+        }
+
+        /* KaTeX dark-theme tuning */
+        .katex { color: var(--text-primary); }
+        .katex-display { overflow-x: auto; overflow-y: hidden; padding: 0.5rem 0; }
+
+        /* ── interactive demo (self-attention visualizer) ── */
+        .demo {
+            margin: 2.5rem 0 3rem;
+            padding: 1.5rem;
+            background-color: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+        }
+        .demo h3 {
+            margin-top: 0 !important;
+            color: var(--text-primary);
+            font-size: 1.05rem;
+        }
+        .demo .lead {
+            font-size: 0.92rem;
+            color: var(--text-muted);
+            margin-bottom: 1.25rem;
+        }
+
+        .demo .sentence-row { margin-bottom: 1.1rem; }
+        .demo .sentence-row label {
+            display: block;
+            font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.5px;
+            color: var(--text-muted); margin-bottom: 0.4rem;
+        }
+        .demo input[type="text"] {
+            width: 100%;
+            font-family: inherit;
+            font-size: 0.95rem;
+            padding: 0.6rem 0.8rem;
+            border-radius: 6px;
+            border: 1px solid var(--border);
+            background-color: var(--primary);
+            color: var(--text-primary);
+        }
+        .demo input[type="text"]:focus-visible { border-color: var(--secondary); }
+
+        .demo .controls {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+            gap: 1rem 1.4rem;
+            align-items: center;
+            margin-bottom: 1.25rem;
+        }
+        .demo .control label {
+            display: flex; justify-content: space-between; align-items: baseline;
+            font-size: 0.82rem;
+            color: var(--text-muted);
+            margin-bottom: 0.35rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .demo .control label .val {
+            color: var(--text-primary);
+            font-weight: 600;
+            font-variant-numeric: tabular-nums;
+            text-transform: none;
+            letter-spacing: 0;
+        }
+        .demo .control input[type="range"] { width: 100%; accent-color: var(--secondary); }
+
+        .demo .toggle {
+            display: flex; align-items: center; gap: 0.5rem;
+            font-size: 0.86rem; color: var(--text-secondary); cursor: pointer;
+        }
+        .demo .toggle input { accent-color: var(--secondary); width: 1.05rem; height: 1.05rem; }
+
+        .attn-wrap { overflow-x: auto; padding-bottom: 0.4rem; }
+        .attn-grid { display: grid; gap: 3px; min-width: max-content; margin: 0.4rem auto 0.8rem; }
+        .attn-cell {
+            padding: 0.5rem 0.3rem;
+            min-width: 3.1rem;
+            text-align: center;
+            border-radius: 4px;
+            font-size: 0.78rem;
+            font-variant-numeric: tabular-nums;
+            line-height: 1.2;
+        }
+        .attn-head {
+            color: var(--text-muted);
+            font-size: 0.76rem;
+            display: flex; align-items: center; justify-content: center;
+            padding: 0.2rem 0.3rem;
+            word-break: break-word;
+        }
+        .attn-head.row { justify-content: flex-end; padding-right: 0.5rem; text-align: right; }
+        .attn-corner { font-size: 0.66rem; color: var(--text-dim); display: flex; align-items: flex-end; justify-content: flex-end; padding: 0 0.4rem 0.2rem 0; }
+        .attn-masked { background-color: var(--primary); color: var(--text-dim); }
+        .attn-readout {
+            font-size: 0.84rem; color: var(--text-muted);
+            background-color: var(--primary);
+            border: 1px solid var(--border); border-radius: 8px;
+            padding: 0.7rem 0.9rem;
+        }
+        .attn-readout strong { color: var(--secondary); }
+        .attn-axis-note { font-size: 0.74rem; color: var(--text-dim); text-align: center; margin-top: 0.2rem; }
+
+        @media (max-width: 768px) {
+            nav { padding: 0.5rem 1rem; }
+            article { padding: 6rem 1.25rem 3rem; }
+            article h1 { font-size: 1.7rem; }
+            article h2 { font-size: 1.25rem; }
+            .demo { padding: 1.25rem; }
+        }
+    </style>
+</head>
+<body>
+
+    <nav aria-label="Primary">
+        <a href="../" class="nav-logo">DG</a>
+        <a href="../#blog" class="back-link">&larr; Back to Blog</a>
+    </nav>
+
+    <article>
+        <div class="post-meta">
+            <span>June 9, 2026</span>
+            <span class="dot">&middot;</span>
+            <span>~17 min read</span>
+            <span class="tag">Transformers</span>
+            <span class="tag">Attention</span>
+            <span class="tag">LLMs</span>
+            <span class="tag">Paper Review</span>
+        </div>
+
+        <h1>Is Attention Still All You Need? Eight Years of Rewriting One Layer</h1>
+
+        <p class="deck">A guided tour through the one layer that defines modern AI: the math, the intuition, and the engineering trade-offs, with simulations you can reproduce.</p>
+
+        <figure class="hero">
+            <img src="assets/attention_hero_timeline.png" alt="A timeline from 2017 to 2025 marking five rewrites of the attention layer: Multi-Head Self-Attention (2017), Structured Sparse Attention (2020), Rotary Position Embedding (2021), Multi-Query and Grouped-Query Attention (2023), and Multi-head Latent Attention (2025).">
+            <figcaption>One layer, rewritten five times in eight years. Each rewrite kept the soft-lookup silhouette of the 2017 original but changed something deep inside, how attention spends compute, how it encodes position, or how much memory it hoards.</figcaption>
+        </figure>
+
+        <p>Open the hood of any frontier model, GPT, Llama, Qwen, Gemma, DeepSeek, and at the bottom you find the same beating heart: the <strong>attention layer</strong>. It is a remarkably small idea. The core computation fits in a single line of linear algebra and a softmax. You could write it on a napkin.</p>
+
+        <p>And yet that napkin has been <em>rewritten</em> at least five times in eight years. Each rewrite kept the silhouette of the original but changed something deep inside, how it spends compute, how it remembers position, how much memory it hoards at inference time. Each one was worth, quite literally, billions of dollars in serving costs or an order of magnitude in context length.</p>
+
+        <p>This post walks through those five rewrites in order. For each, I&rsquo;ll give you the <strong>intuition</strong> first, then the <strong>mathematics</strong>, then the <strong>effect on LLMs</strong>, and a <strong>simulation</strong> computed from scratch (every figure here comes from a real NumPy experiment; the generator ships with this post as <code>blog/assets/attention_figures.py</code>). By the end you&rsquo;ll have a working mental model of why the attention layer looks the way it does today, and where it&rsquo;s heading next. And the title, a deliberate echo of the 2017 paper that started it all, is a question we&rsquo;ll be in a position to answer by the end.</p>
+
+        <p>Here&rsquo;s the map:</p>
+
+        <div class="table-wrap">
+        <table>
+            <thead>
+                <tr><th>#</th><th>Rewrite</th><th>Core move</th><th>What it bought us</th><th>Seen in</th></tr>
+            </thead>
+            <tbody>
+                <tr><td>1</td><td><strong>Multi-Head Self-Attention</strong></td><td>Pairwise similarity &rarr; softmax &rarr; weighted sum, in parallel heads</td><td>A trainable, fully-parallel &ldquo;soft lookup&rdquo;</td><td>Every transformer since 2017</td></tr>
+                <tr><td>2</td><td><strong>Structured Sparse Attention</strong></td><td>Drop most pairs; keep window + global + random</td><td>$O(n^2)\to O(n)$ <em>with proofs</em></td><td>Long-context encoders; revived in NSA/DSA</td></tr>
+                <tr><td>3</td><td><strong>Rotary Position Embedding</strong></td><td>Rotate Q/K by angle &prop; position</td><td>Relative position + clean length extrapolation</td><td>Llama, Qwen, Mistral, almost everything</td></tr>
+                <tr><td>4</td><td><strong>Multi-Query / Grouped-Query Attention</strong></td><td>Share K/V heads across queries</td><td>8&ndash;64&times; smaller KV cache &rarr; cheap inference</td><td>Llama 3, Mistral, Gemma, GPT-OSS</td></tr>
+                <tr><td>5</td><td><strong>Multi-head Latent Attention</strong></td><td>Cache a <em>compressed latent</em>, not full K/V</td><td>~28&times; smaller cache <em>and</em> more expressive</td><td>DeepSeek V2/V3/R1</td></tr>
+            </tbody>
+        </table>
+        </div>
+
+        <blockquote>
+            <p><strong>A note on framing.</strong> I&rsquo;m treating each paper as a <em>rewrite of one layer</em> rather than five unrelated tricks. That framing is the whole point: the field keeps returning to the same five lines and asking &ldquo;what if we changed <em>this</em> term?&rdquo;</p>
+        </blockquote>
+
+        <h2>1. Multi-Head Self-Attention, the compute graph everything else inherits</h2>
+
+        <p><strong>The intuition.</strong> Attention is a <em>soft dictionary lookup</em>. Every token emits a <strong>query</strong> (&ldquo;what am I looking for?&rdquo;), every token exposes a <strong>key</strong> (&ldquo;what do I offer?&rdquo;) and a <strong>value</strong> (&ldquo;what I&rsquo;ll hand over if you pick me&rdquo;). A token compares its query against all keys, turns the match scores into a probability distribution with softmax, and reads out a weighted blend of values. No recurrence, no convolution, just content-based routing that runs fully in parallel.</p>
+
+        <p><strong>The mathematics.</strong> The entire mechanism is two equations. Scaled dot-product attention:</p>
+
+        <p>$$\text{Attention}(Q,K,V)=\operatorname{softmax}\!\left(\frac{QK^{\top}}{\sqrt{d_k}}\right)V$$</p>
+
+        <p>and the multi-head wrapper that runs $h$ of these in parallel subspaces and concatenates them:</p>
+
+        <p>$$\text{MultiHead}(Q,K,V)=\text{Concat}(\text{head}_1,\dots,\text{head}_h)\,W^{O},\qquad \text{head}_i=\text{Attention}(QW_i^{Q},\,KW_i^{K},\,VW_i^{V}).$$</p>
+
+        <p>The original transformer used $h=8$ heads with $d_k=d_v=d_{\text{model}}/h=64$. Splitting the model dimension across heads lets each head specialize, one tracks syntax, another coreference, another position, at no extra compute, since the per-head dimension shrinks proportionally.</p>
+
+        <figure>
+            <img src="assets/f1_attention_mechanism.png" alt="Two heatmaps for the sentence 'The cat sat on the mat' under a causal mask. Left: raw QK-transpose scores over the square root of d_k. Right: the same after softmax, where each row is a probability distribution; 'mat' puts 0.96 of its weight on 'cat' and 'sat' puts 0.94 on 'cat'." loading="lazy">
+            <figcaption>Figure 1, A causal self-attention pass on a toy sentence, computed for real. Left: raw scores $QK^\top/\sqrt{d_k}$. Right: after softmax, each row is a probability distribution over the (visible) context. &ldquo;mat&rdquo; routes 96% of its attention to &ldquo;cat&rdquo;; &ldquo;sat&rdquo; routes 94%. This is the soft lookup in action.</figcaption>
+        </figure>
+
+        <p><strong>Why the $\sqrt{d_k}$?</strong> This is the most quietly important detail in the paper. If query and key entries are independent with unit variance, then $q\cdot k=\sum_{i=1}^{d_k} q_i k_i$ has variance $d_k$, so its standard deviation grows like $\sqrt{d_k}$. Feed those ballooning logits into softmax and it saturates: one key wins ~100% of the weight and the gradient through softmax collapses. Dividing by $\sqrt{d_k}$ holds the logits at unit scale. As the authors put it:</p>
+
+        <blockquote>
+            <p>&ldquo;We suspect that for large values of $d_k$, the dot products grow large in magnitude, pushing the softmax function into regions where it has extremely small gradients. To counteract this effect, we scale the dot products by $\tfrac{1}{\sqrt{d_k}}$.&rdquo;</p>
+            <cite>&mdash; Vaswani et al., <em>Attention Is All You Need</em></cite>
+        </blockquote>
+
+        <figure>
+            <img src="assets/f2_sqrt_scaling.png" alt="Two line charts. Left: the empirical standard deviation of q-dot-k tracks the square root of d_k across head dimensions from 2 to 1024. Right: without scaling, the mean top attention weight over 12 keys climbs toward 1.0 as d_k grows; with 1-over-root-d_k scaling it stays flat near the uniform baseline." loading="lazy">
+            <figcaption>Figure 2, The scaling rule, simulated. Left: the empirical standard deviation of $q\cdot k$ tracks $\sqrt{d_k}$ across three orders of magnitude. Right: without scaling, the average top attention weight (over 12 keys) climbs toward 1.0 as heads widen, the softmax saturates and gradients vanish. The $1/\sqrt{d_k}$ curve stays flat and trainable.</figcaption>
+        </figure>
+
+        <h3>Feel it yourself: attention on your own words</h3>
+
+        <p>Reading about a soft lookup is one thing; watching it form on a sentence you typed is another. The widget below runs <em>real</em> scaled dot-product attention, the exact equation above, live in your browser. Type any sentence and each row of the grid becomes a probability distribution over the words it can see. Then play with the two knobs that the paper is really about: widen the head dimension $d_k$ or switch off the $1/\sqrt{d_k}$ scaling, and watch the rows <strong>collapse onto a single word</strong> as the softmax saturates, the failure mode Figure 2 quantifies, now under your fingers.</p>
+
+        <section class="demo" id="attn-demo" aria-label="Interactive self-attention visualizer">
+            <h3>Self-attention, live</h3>
+            <p class="lead">Each cell is the attention weight from a <strong>query</strong> word (row) to a <strong>key</strong> word (column). Rows sum to 1. Hover a cell for its raw score and weight.</p>
+
+            <div class="sentence-row">
+                <label for="attn-input">Your sentence</label>
+                <input type="text" id="attn-input" value="the cat sat on the mat" autocomplete="off" spellcheck="false" aria-label="Sentence to visualize attention over">
+            </div>
+
+            <div class="controls">
+                <div class="control">
+                    <label for="attn-dk">Head dimension d<sub>k</sub> <span class="val" id="attn-dk-val" aria-live="polite" aria-atomic="true">16</span></label>
+                    <input type="range" id="attn-dk" min="2" max="128" step="2" value="16" aria-label="Head dimension d_k, 2 to 128">
+                </div>
+                <label class="toggle" for="attn-scale">
+                    <input type="checkbox" id="attn-scale" checked>
+                    Scale by 1/&radic;d<sub>k</sub>
+                </label>
+                <label class="toggle" for="attn-mask">
+                    <input type="checkbox" id="attn-mask" checked>
+                    Causal mask (decoder)
+                </label>
+            </div>
+
+            <div class="attn-wrap">
+                <div class="attn-grid" id="attn-grid" role="img" aria-label="Attention weight heatmap"></div>
+            </div>
+            <div class="attn-axis-note">columns = keys (attended-to) &middot; rows = queries (current token)</div>
+
+            <div class="attn-readout" id="attn-readout" role="status" aria-live="polite" style="margin-top:0.9rem;"></div>
+            <p class="lead" style="margin-top:1rem;margin-bottom:0;font-size:0.82rem;">Honesty note: the token embeddings here are deterministic and <em>illustrative</em> (built from character n-grams, so repeated and similar words attend to each other), they are not from a trained model. The <em>operations</em>, dot-product scoring, the $1/\sqrt{d_k}$ scaling, the causal mask, and the softmax, are exactly the real thing.</p>
+        </section>
+
+        <p><strong>The effect on LLMs.</strong> This is the layer&rsquo;s <em>compute graph</em>, the dependency structure that GPUs and TPUs are now physically optimized around. Its one structural liability is also visible right here: that $QK^\top$ matrix is $n\times n$, so cost scales <strong>quadratically</strong> with sequence length $n$. Every rewrite that follows is, in some sense, an attack on a different cost in this graph, the quadratic compute, the position handling, or the memory it leaves behind. Hold this picture; the rest of the post deforms it.</p>
+
+        <h2>2. Structured Sparse Attention, sparsity with a proof, not a prayer</h2>
+
+        <p><strong>The intuition.</strong> Full attention lets every token see every other token. But does it <em>need</em> to? Most linguistic dependencies are local, with a few long-range hops. So: let each token attend to a small <strong>sliding window</strong> of neighbors, a handful of <strong>random</strong> tokens, and a few <strong>global</strong> tokens that everyone can see and that see everyone. Sprinkle those three together and you get a sparse graph that <em>behaves</em> like the dense one, at a fraction of the cost.</p>
+
+        <p>The danger is obvious: ad-hoc sparsity patterns are a graveyard of heuristics that quietly break what made attention powerful. <strong>BigBird&rsquo;s</strong> contribution was to prove they don&rsquo;t have to.</p>
+
+        <p><strong>The mathematics.</strong> Replace &ldquo;attend to all $j$&rdquo; with &ldquo;attend to a neighborhood $N(i)$&rdquo;:</p>
+
+        <p>$$\text{head}(x_i)=\operatorname{softmax}\!\left(\frac{Q(x_i)\,K(x_{N(i)})^{\top}}{\sqrt{d_k}}\right)V(x_{N(i)}),\qquad N(i)=\underbrace{W(i)}_{\text{window}}\ \cup\ \underbrace{G}_{\text{global}}\ \cup\ \underbrace{R(i)}_{\text{random}}.$$</p>
+
+        <p>Because $|N(i)| = w+g+r$ is a <strong>constant</strong> independent of sequence length, total cost is $O(n)$ rather than $O(n^2)$. The theoretical payoff is what elevates this from heuristic to architecture:</p>
+
+        <blockquote>
+            <p>&ldquo;We show that BigBird is a universal approximator of sequence functions and is Turing complete, thereby preserving these properties of the quadratic, full attention model.&rdquo;</p>
+            <cite>&mdash; Zaheer et al., <em>Big Bird: Transformers for Longer Sequences</em></cite>
+        </blockquote>
+
+        <p>The proof leans on the global tokens: a handful of $O(1)$ nodes that everyone routes through is enough to recover the expressive reach of full attention with only $O(n)$ inner products.</p>
+
+        <figure>
+            <img src="assets/f3_sparse_patterns.png" alt="Four attention-mask patterns at n=64: full attention at 100% density, a local sliding window, window plus a global cross of rows and columns, and BigBird which adds a few random links per row. BigBird is sparse but connected." loading="lazy">
+            <figcaption>Figure 3, The four attention masks, drawn at $n=64$. Full attention is 100% dense. A sliding window is local-only. Add a couple of global rows/columns (the cross), then a few random links per row, and you get BigBird. The patterns look sparse even at this small size; the magic is in how the density behaves as $n$ grows.</figcaption>
+        </figure>
+
+        <figure>
+            <img src="assets/f4_sparse_scaling.png" alt="Two charts. Left: attention pair computations grow quadratically for full attention but linearly for BigBird as sequence length grows to 65,536. Right: the fraction of the full n-by-n matrix computed falls below 2% by n=32,000 for a fixed per-token budget." loading="lazy">
+            <figcaption>Figure 4, Why it matters at scale. Left: pair computations grow quadratically for full attention but linearly for BigBird. Right: with a fixed per-token budget (window 512, a few global + random), the fraction of the full $n\times n$ matrix you actually compute falls below 2% by $n=32{,}000$. That headroom is what let sparse models handle ~8&times; longer sequences on the same hardware.</figcaption>
+        </figure>
+
+        <p><strong>The effect on LLMs.</strong> BigBird and its cousins (Longformer, ETC) made document-scale encoders practical, QA and summarization over thousands of tokens. For a while, dense attention plus FlashAttention&rsquo;s clever IO scheduling stole the spotlight, and structured sparsity looked like a 2020 idea. Then it came roaring back: DeepSeek&rsquo;s <strong>Native Sparse Attention (NSA)</strong>, which won a Best Paper Award at ACL 2025, uses <em>exactly</em> this template (compressed/global, selected, and sliding-window branches) but makes the selection <strong>learnable and hardware-aligned</strong>, and trains it end-to-end. The lesson BigBird proved is the one the frontier is now cashing in:</p>
+
+        <blockquote>
+            <p>Structural sparsity isn&rsquo;t a lossy approximation of attention, under the right pattern, it <em>is</em> attention, with the same theoretical guarantees and a linear bill.</p>
+        </blockquote>
+
+        <h2>3. Rotary Position Embedding, turning position into a rotation</h2>
+
+        <p><strong>The intuition.</strong> Attention is permutation-equivariant: shuffle the tokens and the math doesn&rsquo;t notice. So order has to be injected somehow. The original transformer <em>added</em> a position vector to each token. RoPE does something more elegant, it <strong>rotates</strong> each token&rsquo;s query and key by an angle proportional to its position. Two tokens that are close get similar rotations; two tokens far apart get very different ones. Crucially, when you take a dot product between a rotated query and a rotated key, the absolute angles cancel and only the <em>difference</em> survives. Absolute encoding goes in; relative encoding comes out, for free.</p>
+
+        <p><strong>The mathematics.</strong> In 2D, position $m$ acts as a rotation matrix:</p>
+
+        <p>$$f_{\{q,k\}}(x_m,m)=\begin{pmatrix}\cos m\theta & -\sin m\theta\\ \sin m\theta & \cos m\theta\end{pmatrix} W_{\{q,k\}}\,x_m.$$</p>
+
+        <p>Generalize to $d$ dimensions by stacking $d/2$ such rotation blocks, each spinning at its own frequency $\theta_i=10000^{-2(i-1)/d}$:</p>
+
+        <p>$$f_{\{q,k\}}(x_m,m)=R^{d}_{\Theta,m}\,W_{\{q,k\}}\,x_m.$$</p>
+
+        <p>Now the key identity. Because rotations compose by adding angles, $\big(R_{m}\,q\big)^{\!\top}\big(R_{n}\,k\big)=q^{\top}R^{d}_{\Theta,\,n-m}\,k$, the attention logit depends <strong>only on the relative offset</strong> $n-m$:</p>
+
+        <p>$$q_m^{\top}k_n = x_m^{\top}W_q^{\top}\,R^{d}_{\Theta,\,n-m}\,W_k\,x_n.$$</p>
+
+        <figure>
+            <img src="assets/f5_rope.png" alt="Two panels. Left: the RoPE logit matrix for a fixed query/key pair is Toeplitz, constant along each diagonal, the signature of pure relative dependence. Right: the relative attention upper bound decays as relative distance grows from 0 to 256." loading="lazy">
+            <figcaption>Figure 5, RoPE, computed directly. Left: the logit matrix $q_m^\top R_{n-m} k_n$ for a fixed query/key pair is <strong>Toeplitz</strong>, constant along each diagonal, the visual signature of pure relative dependence. Right: the long-term decay property. Following the paper&rsquo;s Abel-summation bound, the attention envelope shrinks with relative distance, encoding the prior that far-apart tokens should interact less.</figcaption>
+        </figure>
+
+        <p><strong>The effect on LLMs.</strong> RoPE quietly won. It needs no extra parameters, plays nicely with the linear-attention reformulation, and, because position is a continuous rotation rather than a lookup into a fixed table, it <strong>extrapolates</strong> to sequence lengths never seen in training far more gracefully than learned absolute embeddings. That single property kicked off the long-context era: techniques like NTK-aware scaling and YaRN are all just clever ways of <em>re-tuning RoPE&rsquo;s frequencies</em> $\theta_i$ to stretch a model&rsquo;s context window after the fact. When you read &ldquo;we extended this model to 128k context,&rdquo; there&rsquo;s a very good chance someone was turning RoPE&rsquo;s dials. It&rsquo;s now the default in Llama, Qwen, Mistral, Gemma, and the DeepSeek family.</p>
+
+        <h2>4. Multi-Query &amp; Grouped-Query Attention, the KV cache is the bill</h2>
+
+        <p><strong>The intuition.</strong> During generation, a model produces one token at a time and caches the keys and values of every prior token so it doesn&rsquo;t recompute them, the <strong>KV cache</strong>. The catch: at every single step the hardware must <em>re-read that entire cache from memory</em>. With long contexts and many heads, you become <strong>memory-bandwidth bound</strong>, the GPU&rsquo;s math units sit idle waiting for the cache to stream in. The fix is brutally simple: stop storing a separate key/value for every query head. Let many query heads <strong>share</strong> one key/value head.</p>
+
+        <p><strong>The mathematics.</strong> Standard MHA keeps $n_q$ key/value heads. <strong>Multi-Query Attention (MQA)</strong> keeps exactly one, shared across all queries. <strong>Grouped-Query Attention (GQA)</strong> interpolates: split the $n_q$ query heads into $G$ groups, each sharing a single K/V head.</p>
+
+        <p>$$\text{GQA-}G:\quad n_{kv}=G,\qquad \text{MQA}=\text{GQA-}1,\qquad \text{MHA}=\text{GQA-}n_q.$$</p>
+
+        <p>The KV cache (and the bandwidth you pay every step) scales with $n_{kv}$:</p>
+
+        <p>$$\text{KV cache} = 2\,(K,V)\times n_{\text{layers}}\times n_{kv}\times d_{\text{head}}\times n_{\text{tokens}}\times \text{(bytes)}.$$</p>
+
+        <p>To create a GQA model without retraining from scratch, GQA&rsquo;s authors <strong>mean-pool</strong> the original heads within each group and then &ldquo;uptrain&rdquo; for just $\alpha=5\%$ of the original compute, recovering quality almost for free.</p>
+
+        <figure>
+            <img src="assets/f6_kv_cache.png" alt="Two panels for a Llama-3-70B-class config. Left: KV-cache memory versus context length on log-log axes for MHA, GQA-8, MQA, and MLA. Right: shrink factors versus MHA — GQA-8 is 8x, MQA 64x, MLA 28x smaller." loading="lazy">
+            <figcaption>Figure 6, KV-cache memory for a Llama-3-70B-class config (80 layers, 64 query heads, $d_{\text{head}}=128$, fp16), computed exactly. Left: full MHA needs <strong>~344 GB</strong> of KV cache at a 128k context; GQA-8 (Llama 3&rsquo;s choice) cuts that to <strong>~43 GB</strong>; MQA to ~5 GB. Right: the shrink factor, GQA-8 is <strong>8&times;</strong>, MQA <strong>64&times;</strong> smaller than MHA. (MLA, the next section, lands at ~28&times;.)</figcaption>
+        </figure>
+
+        <figure>
+            <img src="assets/f7_gqa_tradeoff.png" alt="Scatter plot of inference time per sample versus average quality. MQA-XXL is fastest but lower quality; MHA-XXL is highest quality but slow; GQA-8-XXL sits in the corner with near-MHA-XXL quality at roughly 5x the speed." loading="lazy">
+            <figcaption>Figure 7, The actual measured trade-off from the GQA paper. MQA is fastest but loses quality; MHA-XXL is highest quality but slow. GQA-8 sits in the corner everyone wants: essentially MHA-XXL quality at roughly 5&times; the inference speed.</figcaption>
+        </figure>
+
+        <p><strong>The effect on LLMs.</strong> This is the rewrite that decides what you can afford to deploy. MQA was first proposed by Noam Shazeer in a paper whose title says it all,</p>
+
+        <blockquote>
+            <p><em>&ldquo;Fast Transformer Decoding: One Write-Head is All You Need.&rdquo;</em></p>
+            <cite>&mdash; Shazeer (2019)</cite>
+        </blockquote>
+
+        <p>&mdash; but MQA alone can hurt quality and destabilize training. GQA found the knee of the curve, and the industry voted with its weights: <strong>Llama 3 uses GQA at every size</strong> (8 KV heads throughout, 4 query heads per KV head at 8B, 8 per KV head at 70B), as do Mistral, Qwen2.5, and Gemma. For edge and small-language-model deployment, where memory is the binding constraint, the size of the KV cache <em>is</em> the product spec.</p>
+
+        <h2>5. Multi-head Latent Attention, compress the cache, keep the expressiveness</h2>
+
+        <p><strong>The intuition.</strong> GQA shrinks the cache by <em>throwing heads away</em>. But what if the cache is compressible without losing information? MLA&rsquo;s move: don&rsquo;t cache full keys and values at all. Project each token down into a small <strong>latent vector</strong> $c^{KV}$, cache <em>that</em>, and re-expand it back into full keys and values on the fly during attention. You trade a little extra compute (the up-projection) for a lot less memory traffic, a great deal on hardware that is bandwidth-starved, not compute-starved.</p>
+
+        <p>The deep insight from <strong>TransMLA</strong> is <em>why this is strictly better than GQA</em>. It turns out GQA&rsquo;s &ldquo;repeat the K/V heads&rdquo; trick is secretly a <strong>low-rank factorization</strong>, and a wasteful one.</p>
+
+        <p><strong>The mathematics.</strong> GQA expands its few K/V heads up to $n_q$ by replication. Replicating the projection matrix $W_K$ produces a $D\times D$ matrix $W'_K$ whose rank is capped at $n_k d_h$ (the heads are copies, so they&rsquo;re linearly dependent). Any such matrix factors via SVD:</p>
+
+        <p>$$W'_K = W^{a}_K\,W^{b}_K,\qquad W^{a}_K\in\mathbb{R}^{D\times r},\ \ W^{b}_K\in\mathbb{R}^{r\times D},\ \ r\le n_k d_h.$$</p>
+
+        <p>So you only need to cache the small latent $X W^a_K \in \mathbb{R}^{T\times r}$ and expand with $W^b_K$ at attention time. MLA caches a latent of exactly this size, DeepSeek-V2 uses $d_c=512$ plus a $d_{\text{rope}}=64$ decoupled-RoPE key, but here&rsquo;s the kicker: GQA is <em>forced</em> to fill those $r$ dimensions with replicated (hence redundant) directions, whereas MLA is free to use all $r$ directions independently. Same cache budget, more degrees of freedom. That&rsquo;s the theorem:</p>
+
+        <blockquote>
+            <p><strong>Theorem 1.</strong> &ldquo;The expressiveness of MLA is greater than that of GQA when both have the same size of KV cache.&rdquo;</p>
+            <cite>&mdash; Meng, Yao &amp; Zhang, <em>TransMLA</em></cite>
+        </blockquote>
+
+        <figure>
+            <img src="assets/f8_mla_lowrank.png" alt="Semilog plot of normalized singular values. MHA's key projection stays full rank across all 256 indices; the GQA repeat-KV projection falls off a cliff at index 128 (n_k times d_h), wasting half its dimensions. MLA caches a latent of the same 128-wide size but uses the directions independently." loading="lazy">
+            <figcaption>Figure 8, The theorem, made visible. I built a GQA &ldquo;repeat-KV&rdquo; projection ($D=256$, $n_k=2$ KV heads, $d_h=64$) and took its SVD. Its singular values fall off a <strong>cliff at exactly $n_k d_h = 128$</strong>, the matrix is rank-deficient by construction, wasting half its dimensions on copies. MHA&rsquo;s projection stays full-rank. MLA caches a latent of the same 128-wide size but, by using those directions independently, recovers the expressiveness GQA throws away.</figcaption>
+        </figure>
+
+        <p><strong>The effect on LLMs.</strong> MLA is the reason DeepSeek can serve a frontier model cheaply: <strong>DeepSeek-V2 reported a 93.3% reduction in KV cache</strong> versus their dense 67B model, and boosted maximum generation throughput to <strong>5.76&times;</strong>. TransMLA closes the loop by showing any existing GQA model (Llama, Qwen, Mixtral) can be <strong>converted to MLA via SVD</strong> and fine-tuned to higher quality without growing the cache, a low-cost migration path that doesn&rsquo;t require pretraining from scratch.</p>
+
+        <p>And MLA rarely travels alone now. <strong>DeepSeek-V3.2-Exp</strong> (September 2025) pairs latent compression with <strong>DeepSeek Sparse Attention (DSA)</strong>, a lightning indexer that selects ~2048 KV entries per query, to push long-context attention toward <strong>near-linear $O(kL)$ cost</strong> and cut long-context API prices by roughly half. (The full DeepSeek-V3.2 paper, arXiv:2512.02556, followed in December 2025.) Which is to say: the frontier is now combining rewrite #2 (learnable sparsity) with rewrite #5 (latent compression) in the same layer.</p>
+
+        <h2>Where this leaves us</h2>
+
+        <p>Step back and the eight years tell a clean story. The attention layer began as a dense, full-rank, quadratic-cost object that stored everything and computed everything (#1). Then, one term at a time, the field interrogated each cost:</p>
+
+        <ul>
+            <li><strong>The quadratic compute</strong> &rarr; make the attention graph sparse, with proofs that it loses nothing (#2, and now NSA/DSA).</li>
+            <li><strong>The position handling</strong> &rarr; encode it as a rotation so attention sees relative distance and extrapolates (#3).</li>
+            <li><strong>The memory bandwidth</strong> &rarr; share K/V heads (#4), then compress them into a learned latent (#5).</li>
+        </ul>
+
+        <p>What&rsquo;s striking is that none of these threw away the napkin equation. They deformed it, sparsifying the $QK^\top$ graph, rotating $Q$ and $K$, factoring the K/V projections, while keeping the soft-lookup-then-blend skeleton intact. Attention has proven less like a fixed component and more like a <em>design space</em> the field keeps re-exploring.</p>
+
+        <p>So the question worth sitting with isn&rsquo;t whether we&rsquo;ll keep optimizing attention, we obviously will. It&rsquo;s this:</p>
+
+        <blockquote>
+            <p>Every rewrite so far has preserved the softmax-over-dot-products core. The newest frontier models are converging on <strong>learnable sparsity + latent compression</strong> stacked in a single layer, attention that decides <em>what</em> to look at and <em>how compactly</em> to remember it. At what point does that stack stop being &ldquo;an optimization of attention&rdquo; and become a genuinely different mechanism, and will the next foundational paper still be able to claim that <em>attention is all you need?</em></p>
+        </blockquote>
+
+        <h3>Figures &amp; reproducibility</h3>
+
+        <p>Every figure above was computed from scratch with a single self-contained NumPy/Matplotlib script, the attention pass and softmax in Figure 1, the $\sqrt{d_k}$ sampling experiment in Figure 2, the sparsity masks and scaling in Figures 3&ndash;4, the Toeplitz RoPE logits in Figure 5, the exact KV-cache arithmetic in Figure 6, and the SVD rank-cliff in Figure 8. The generator ships with this post as <code>blog/assets/attention_figures.py</code>; run it to reproduce every number quoted here. The interactive visualizer runs the same scaled-dot-product attention, live, in your browser.</p>
+
+        <div class="references">
+            <h2>Sources &amp; further reading</h2>
+            <ol>
+                <li>Vaswani et al. (2017). <em>Attention Is All You Need.</em> <a href="https://arxiv.org/abs/1706.03762" target="_blank" rel="noopener noreferrer">arXiv:1706.03762</a>, multi-head self-attention and the $1/\sqrt{d_k}$ scaling.</li>
+                <li>Zaheer et al. (2020). <em>Big Bird: Transformers for Longer Sequences.</em> <a href="https://arxiv.org/abs/2007.14062" target="_blank" rel="noopener noreferrer">arXiv:2007.14062</a> (NeurIPS 2020), structured sparsity, universal approximation, Turing completeness.</li>
+                <li>Su et al. (2021). <em>RoFormer: Enhanced Transformer with Rotary Position Embedding.</em> <a href="https://arxiv.org/abs/2104.09864" target="_blank" rel="noopener noreferrer">arXiv:2104.09864</a>.</li>
+                <li>Ainslie et al. (2023). <em>GQA: Training Generalized Multi-Query Transformer Models from Multi-Head Checkpoints.</em> <a href="https://arxiv.org/abs/2305.13245" target="_blank" rel="noopener noreferrer">arXiv:2305.13245</a>, mean-pool conversion + ~5% uptraining.</li>
+                <li>Meng, Yao &amp; Zhang (2025). <em>TransMLA: Multi-head Latent Attention Is All You Need.</em> <a href="https://arxiv.org/abs/2502.07864" target="_blank" rel="noopener noreferrer">arXiv:2502.07864</a>, Theorem 1 (MLA &gt; GQA at equal cache).</li>
+                <li>DeepSeek-AI (2024). <em>DeepSeek-V2.</em> <a href="https://arxiv.org/abs/2405.04434" target="_blank" rel="noopener noreferrer">arXiv:2405.04434</a>, reports the 93.3% KV-cache reduction and 5.76&times; throughput vs. their dense 67B.</li>
+                <li>Yuan et al. (2025). <em>Native Sparse Attention: Hardware-Aligned and Natively Trainable Sparse Attention.</em> <a href="https://arxiv.org/abs/2502.11089" target="_blank" rel="noopener noreferrer">arXiv:2502.11089</a>, a Best Paper Award, ACL 2025.</li>
+                <li>DeepSeek-AI (2025). <em>DeepSeek-V3.2-Exp</em> (Sept 2025) introduced DeepSeek Sparse Attention (DSA) and ~50% long-context price cuts; the full <em>DeepSeek-V3.2</em> paper followed as <a href="https://arxiv.org/abs/2512.02556" target="_blank" rel="noopener noreferrer">arXiv:2512.02556</a> (Dec 2025).</li>
+                <li>Shazeer (2019). <em>Fast Transformer Decoding: One Write-Head is All You Need.</em> <a href="https://arxiv.org/abs/1911.02150" target="_blank" rel="noopener noreferrer">arXiv:1911.02150</a>, the original MQA paper.</li>
+                <li>Meta AI (2024). <em>The Llama 3 Herd of Models.</em> <a href="https://arxiv.org/abs/2407.21783" target="_blank" rel="noopener noreferrer">arXiv:2407.21783</a>, GQA with 8 KV heads at every model size.</li>
+                <li>Peng et al. (2023). <em>YaRN: Efficient Context Window Extension of Large Language Models.</em> <a href="https://arxiv.org/abs/2309.00071" target="_blank" rel="noopener noreferrer">arXiv:2309.00071</a>, re-tuning RoPE frequencies for long context.</li>
+            </ol>
+        </div>
+
+    </article>
+
+    <footer>
+        &copy; 2026 Daniel Gordon
+    </footer>
+
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js" integrity="sha384-7zkQWkzuo3B5mTepMUcHkMB5jZaolc2xDwL6VFqjFALcbeS9Ggm/Yr2r3Dy4lfFg" crossorigin="anonymous"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js" integrity="sha384-43gviWU0YVjaDtb/GhzOouOXtZMP/7XUzwPTstBeZFe/+rCMvRwr4yROQP43s0Xk" crossorigin="anonymous"
+        onload="renderMathInElement(document.body, {delimiters: [{left: '$$', right: '$$', display: true}, {left: '$', right: '$', display: false}], throwOnError: false});"></script>
+
+    <script>
+        (() => {
+            const $ = (id) => document.getElementById(id);
+            const input = $('attn-input');
+            const dkCtl = $('attn-dk'), dkVal = $('attn-dk-val');
+            const maskCtl = $('attn-mask'), scaleCtl = $('attn-scale');
+            const gridEl = $('attn-grid'), readoutEl = $('attn-readout');
+            const MAXTOK = 14;
+
+            // ── deterministic helpers (no Math.random: the heatmap is reproducible) ──
+            const mulberry32 = (a) => () => {
+                let t = (a += 0x6D2B79F5);
+                t = Math.imul(t ^ (t >>> 15), t | 1);
+                t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+                return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+            };
+            const hashStr = (s) => {
+                let h = 2166136261 >>> 0;
+                for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
+                return h >>> 0;
+            };
+            const gauss = (rng) => {
+                let u = 0, v = 0;
+                while (u === 0) u = rng();
+                while (v === 0) v = rng();
+                return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+            };
+
+            const tokenize = (s) => s.trim().toLowerCase().split(/\s+/).filter(Boolean).slice(0, MAXTOK);
+            const bigrams = (tok) => {
+                const t = '^' + tok + '$', g = [];
+                for (let i = 0; i < t.length - 1; i++) g.push(t.slice(i, i + 2));
+                return g;
+            };
+
+            // Illustrative embeddings: project a token's character-bigram features through a fixed,
+            // deterministic Gaussian map, then scale to norm sqrt(d) so per-component variance is ~1
+            // and the dot product q.k has variance ~d (the regime Figure 2 is about). Queries and keys
+            // get DIFFERENT projections (salt 'Q:'/'K:'), mirroring real attention's W_Q != W_K, so no
+            // token trivially attends to itself. Identical words -> identical vectors; words sharing
+            // n-grams -> correlated vectors, so the pattern responds to what you actually type.
+            const project = (counts, d, salt) => {
+                const e = new Float64Array(d);
+                for (let k = 0; k < d; k++) {
+                    let acc = 0;
+                    counts.forEach((c, b) => {
+                        const rng = mulberry32((Math.imul(hashStr(salt + b), 0x9e3779b1) ^ Math.imul(k + 1, 0x85ebca6b)) >>> 0);
+                        acc += c * gauss(rng);
+                    });
+                    e[k] = acc;
+                }
+                let nrm = 0;
+                for (let k = 0; k < d; k++) nrm += e[k] * e[k];
+                nrm = Math.sqrt(nrm) || 1;
+                const sc = Math.sqrt(d) / nrm;
+                for (let k = 0; k < d; k++) e[k] *= sc;
+                return e;
+            };
+            const embed = (tokens, d) => tokens.map((tok) => {
+                const counts = new Map();
+                bigrams(tok).forEach((b) => counts.set(b, (counts.get(b) || 0) + 1));
+                return { q: project(counts, d, 'Q:'), k: project(counts, d, 'K:') };
+            });
+
+            const dot = (a, b) => { let s = 0; for (let i = 0; i < a.length; i++) s += a[i] * b[i]; return s; };
+
+            // blue colour ramp matching the figures: dark -> blue -> near-white
+            const STOPS = [[15, 23, 42], [30, 64, 175], [59, 130, 246], [147, 197, 253], [248, 250, 252]];
+            const lerp = (a, b, t) => a + (b - a) * t;
+            const colorFor = (w) => {
+                const x = Math.max(0, Math.min(1, w)) * (STOPS.length - 1);
+                const i = Math.min(STOPS.length - 2, Math.floor(x)), f = x - i;
+                const c = [0, 1, 2].map((j) => Math.round(lerp(STOPS[i][j], STOPS[i + 1][j], f)));
+                return `rgb(${c[0]},${c[1]},${c[2]})`;
+            };
+
+            const render = () => {
+                const tokens = tokenize(input.value);
+                const d = parseInt(dkCtl.value, 10);
+                const causal = maskCtl.checked, scale = scaleCtl.checked;
+                dkVal.textContent = d;
+
+                if (tokens.length === 0) {
+                    gridEl.style.gridTemplateColumns = '1fr';
+                    gridEl.innerHTML = '<div class="attn-readout">Type a sentence above to see its attention map.</div>';
+                    readoutEl.textContent = '';
+                    return;
+                }
+
+                const E = embed(tokens, d);
+                const n = tokens.length;
+                const denom = scale ? Math.sqrt(d) : 1;
+                const rows = [];
+                let peakSum = 0;
+                for (let i = 0; i < n; i++) {
+                    const logits = [];
+                    for (let j = 0; j < n; j++) {
+                        logits.push((causal && j > i) ? -Infinity : dot(E[i].q, E[j].k) / denom);
+                    }
+                    let m = -Infinity;
+                    logits.forEach((x) => { if (x > m) m = x; });
+                    let sum = 0;
+                    const ex = logits.map((x) => { const e = (x === -Infinity) ? 0 : Math.exp(x - m); sum += e; return e; });
+                    const w = ex.map((e) => e / (sum || 1));
+                    peakSum += Math.max(...w);
+                    rows.push({ logits, w });
+                }
+
+                // build the grid: corner + column headers, then one labelled row per query
+                gridEl.style.gridTemplateColumns = `minmax(2.6rem, auto) repeat(${n}, minmax(3.1rem, 1fr))`;
+                const cells = [];
+                cells.push('<div class="attn-corner">q&#92;k</div>');
+                tokens.forEach((t) => cells.push(`<div class="attn-head">${esc(t)}</div>`));
+                for (let i = 0; i < n; i++) {
+                    cells.push(`<div class="attn-head row">${esc(tokens[i])}</div>`);
+                    for (let j = 0; j < n; j++) {
+                        if (causal && j > i) {
+                            cells.push('<div class="attn-cell attn-masked" aria-hidden="true">&middot;</div>');
+                        } else {
+                            const w = rows[i].w[j], sc = rows[i].logits[j];
+                            const txt = (w > 0.5) ? '#0f172a' : '#e2e8f0';
+                            const title = `${esc(tokens[i])} → ${esc(tokens[j])}: score ${sc.toFixed(2)}, weight ${w.toFixed(3)}`;
+                            cells.push(`<div class="attn-cell" style="background:${colorFor(w)};color:${txt};" title="${title}" aria-label="${title}">${w.toFixed(2)}</div>`);
+                        }
+                    }
+                }
+                gridEl.innerHTML = cells.join('');
+
+                const meanPeak = peakSum / n;
+                let note;
+                if (!scale) {
+                    note = `Scaling is <strong>off</strong>: with $d_k=${d}$ the raw logits have spread ~&radic;${d}&nbsp;&asymp;&nbsp;${Math.sqrt(d).toFixed(1)}, and each row&rsquo;s peak weight averages <strong>${meanPeak.toFixed(2)}</strong>, the softmax is collapsing onto one key. That is the vanishing-gradient regime.`;
+                } else if (meanPeak > 0.8) {
+                    note = `Even with scaling, $d_k=${d}$ is wide enough that rows are peaking hard (avg peak <strong>${meanPeak.toFixed(2)}</strong>). Lower $d_k$ to soften the distribution.`;
+                } else {
+                    note = `Scaling is <strong>on</strong> ($1/\\sqrt{d_k}$): each row is a healthy distribution over the visible context (avg peak weight <strong>${meanPeak.toFixed(2)}</strong>). Switch it off, or widen $d_k$, to watch the rows saturate.`;
+                }
+                readoutEl.innerHTML = `${n} token${n === 1 ? '' : 's'} &middot; causal mask ${causal ? 'on' : 'off'}. ${note}`;
+                if (window.renderMathInElement) {
+                    renderMathInElement(readoutEl, { delimiters: [{ left: '$', right: '$', display: false }], throwOnError: false });
+                }
+            };
+
+            const esc = (s) => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+            input.addEventListener('input', render);
+            dkCtl.addEventListener('input', render);
+            maskCtl.addEventListener('change', render);
+            scaleCtl.addEventListener('change', render);
+            render();
+        })();
+    </script>
+
+</body>
+</html>
